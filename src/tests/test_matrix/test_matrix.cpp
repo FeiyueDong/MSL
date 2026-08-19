@@ -81,6 +81,22 @@ static bool approx_equal_double_vector(const std::vector<double> &a,
     return true;
 }
 
+static bool matrix_near(const matrix::real_matrix_base &actual,
+                        const matrix::real_matrix_base &expected,
+                        double tolerance) {
+    if (actual.rows() != expected.rows() || actual.cols() != expected.cols()) {
+        return false;
+    }
+    for (size_t j = 0; j < actual.cols(); ++j) {
+        for (size_t i = 0; i < actual.rows(); ++i) {
+            if (std::abs(actual(i, j) - expected(i, j)) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 std::filesystem::path project_root() {
     auto path = std::filesystem::current_path();
     while (!path.empty()) {
@@ -434,6 +450,117 @@ int test_decompositions() {
         for (size_t j = 0; j < A.cols(); ++j)
             for (size_t i = 0; i < A.rows(); ++i)
                 EXPECT_CPLX_NEAR(A(i, j), A_reconstructed(i, j), 1e-10);
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Real nonsymmetric eigenvalues retain conjugate pairs") {
+        constexpr double a = 0.8;
+        constexpr double b = 0.3;
+        matrix::matrixd A(2, 2, {a, -b, b, a});
+        const auto decomposition = matrix::eig(A);
+        const auto &V = decomposition[0];
+        const auto &D = decomposition[1];
+
+        bool found_positive = false;
+        bool found_negative = false;
+        const double matrix_norm = std::sqrt(2.0 * (a * a + b * b));
+        for (size_t column = 0; column < 2; ++column) {
+            const auto lambda = D(column, column);
+            EXPECT_NEAR(lambda.real(), a, 1e-12);
+            found_positive = found_positive || lambda.imag() > 0.0;
+            found_negative = found_negative || lambda.imag() < 0.0;
+
+            double residual_squared = 0.0;
+            double vector_norm_squared = 0.0;
+            for (size_t i = 0; i < 2; ++i) {
+                std::complex<double> av = 0.0;
+                for (size_t j = 0; j < 2; ++j) {
+                    av += A(i, j) * V(j, column);
+                }
+                residual_squared += std::norm(av - lambda * V(i, column));
+                vector_norm_squared += std::norm(V(i, column));
+            }
+            const double relative_residual =
+                std::sqrt(residual_squared)
+                / (matrix_norm * std::sqrt(vector_norm_squared));
+            EXPECT_TRUE(relative_residual < 1e-12);
+        }
+        EXPECT_TRUE(found_positive);
+        EXPECT_TRUE(found_negative);
+
+        auto B = matrix::matrixd::identity(2) * 2.0;
+        const auto generalized = matrix::eig(A, B);
+        EXPECT_NEAR(std::abs(generalized[1](0, 0).imag()), b / 2.0, 1e-12);
+        EXPECT_NEAR(std::abs(generalized[1](1, 1).imag()), b / 2.0, 1e-12);
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Moore-Penrose pseudoinverse") {
+        matrix::matrixd tall(3, 2, {1.0, 2.0, 2.0, 4.0, 3.0, 7.0});
+        const auto tall_pinv = matrix::pinv(tall);
+        EXPECT_EQ(tall_pinv.rows(), 2);
+        EXPECT_EQ(tall_pinv.cols(), 3);
+        EXPECT_TRUE(matrix_near((tall * tall_pinv) * tall, tall, 1e-11));
+        EXPECT_TRUE(
+            matrix_near((tall_pinv * tall) * tall_pinv, tall_pinv, 1e-11));
+
+        const auto wide = matrix::transpose(tall);
+        const auto wide_pinv = matrix::pinv(wide);
+        EXPECT_EQ(wide_pinv.rows(), 3);
+        EXPECT_EQ(wide_pinv.cols(), 2);
+        EXPECT_TRUE(matrix_near((wide * wide_pinv) * wide, wide, 1e-11));
+
+        matrix::matrixd deficient(3, 2, {1.0, 2.0, 2.0, 4.0, 3.0, 6.0});
+        const auto deficient_pinv = matrix::pinv(deficient);
+        EXPECT_TRUE(matrix_near(
+            (deficient * deficient_pinv) * deficient, deficient, 1e-11));
+
+        const auto zero = matrix::matrixd::zeros(2, 3);
+        const auto zero_pinv = matrix::pinv(zero);
+        EXPECT_EQ(zero_pinv.rows(), 3);
+        EXPECT_EQ(zero_pinv.cols(), 2);
+        for (const double value : zero_pinv) {
+            EXPECT_EQ(value, 0.0);
+        }
+
+        matrix::matrixd ill_conditioned(2, 2, {1.0, 0.0, 0.0, 1e-10});
+        const auto reduced_rank = matrix::pinv(ill_conditioned, 1e-8);
+        const auto full_rank = matrix::pinv(ill_conditioned, 1e-12);
+        EXPECT_NEAR(reduced_rank(0, 0), 1.0, 1e-12);
+        EXPECT_EQ(reduced_rank(1, 1), 0.0);
+        EXPECT_NEAR(full_rank(1, 1), 1e10, 1e-3);
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Leading singular triplets") {
+        matrix::matrixd A(3, 2, {3.0, 0.0, 0.0, 2.0, 0.0, 0.0});
+        const auto leading = matrix::truncated_svd(A, 1);
+        EXPECT_EQ(leading.U.rows(), 3);
+        EXPECT_EQ(leading.U.cols(), 1);
+        EXPECT_EQ(leading.V.rows(), 2);
+        EXPECT_EQ(leading.V.cols(), 1);
+        EXPECT_EQ(leading.singular_values.size(), 1);
+        EXPECT_NEAR(leading.singular_values[0], 3.0, 1e-12);
+
+        matrix::matrixd reconstructed(3, 2);
+        for (size_t i = 0; i < reconstructed.rows(); ++i) {
+            for (size_t j = 0; j < reconstructed.cols(); ++j) {
+                reconstructed(i, j) = leading.U(i, 0)
+                                      * leading.singular_values[0]
+                                      * leading.V(j, 0);
+            }
+        }
+        EXPECT_TRUE(
+            matrix_near(reconstructed,
+                        matrix::matrixd(3, 2, {3.0, 0.0, 0.0, 0.0, 0.0, 0.0}),
+                        1e-12));
+
+        const auto left_only = matrix::truncated_svd(A, 1, false);
+        EXPECT_EQ(left_only.V.rows(), 0);
+        EXPECT_EQ(left_only.V.cols(), 0);
     }
     while (0)
         ;

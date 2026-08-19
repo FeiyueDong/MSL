@@ -48,6 +48,9 @@
     <ClInclude Include="..\..\src\msl\signal\butterworth_filter.hpp">
       <Filter>detail\signal</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\msl\signal\cross_covariance.hpp">
+      <Filter>detail\signal</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\msl\signal\detrend.hpp">
       <Filter>detail\signal</Filter>
     </ClInclude>

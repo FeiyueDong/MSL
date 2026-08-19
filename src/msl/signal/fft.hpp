@@ -16,6 +16,7 @@
 #ifndef MSL_FFT_HPP
 #define MSL_FFT_HPP
 
+#include <algorithm>
 #include <complex>
 #include <cstddef>
 #include <span>
@@ -50,13 +51,14 @@ inline void fft(std::span<const double> input,
         throw std::invalid_argument(
             "FFT: output buffer size must be equal to nfft");
     }
-    if (input.size() < nfft) {
-        throw std::invalid_argument(
-            "FFT: FFT length nfft cannot be greater than input size");
-    }
     Eigen::FFT<double> fft_engine;
-
-    fft_engine.fwd(output.data(), input.data(), nfft);
+    if (input.size() < nfft) {
+        std::vector<double> padded(nfft, 0.0);
+        std::copy(input.begin(), input.end(), padded.begin());
+        fft_engine.fwd(output.data(), padded.data(), nfft);
+    } else {
+        fft_engine.fwd(output.data(), input.data(), nfft);
+    }
 }
 
 /**
@@ -91,13 +93,14 @@ inline void fft(std::span<const std::complex<double>> input,
         throw std::invalid_argument(
             "FFT: output buffer size must be equal to nfft");
     }
-    if (input.size() < nfft) {
-        throw std::invalid_argument(
-            "FFT: FFT length nfft cannot be greater than input size");
-    }
     Eigen::FFT<double> fft_engine;
-
-    fft_engine.fwd(output.data(), input.data(), nfft);
+    if (input.size() < nfft) {
+        std::vector<std::complex<double>> padded(nfft, {0.0, 0.0});
+        std::copy(input.begin(), input.end(), padded.begin());
+        fft_engine.fwd(output.data(), padded.data(), nfft);
+    } else {
+        fft_engine.fwd(output.data(), input.data(), nfft);
+    }
 }
 
 /**
@@ -222,21 +225,14 @@ inline matrix::matrixc fft_columns(const matrix::real_matrix_base &input,
     size_t n_cols = input.cols();
 
     nfft = (nfft == 0) ? n_rows : nfft;
-    if (n_rows < nfft) {
-        throw std::invalid_argument(
-            "FFT columns: nfft cannot be greater than input rows");
-    }
-
     matrix::matrixc output(nfft, n_cols);
-
-    Eigen::FFT<double> fft_engine;
 
     // Process each column
     for (size_t j = 0; j < n_cols; ++j) {
         auto col_span = input.column(j);
-
+        auto transformed = fft(col_span, nfft);
         auto col_fft = output.column(j);
-        fft_engine.fwd(col_fft.data(), col_span.data(), nfft);
+        std::copy(transformed.begin(), transformed.end(), col_fft.begin());
     }
 
     return output;
@@ -257,19 +253,13 @@ inline matrix::matrixc fft_columns(const matrix::complex_matrix_base &input,
     size_t n_cols = input.cols();
 
     nfft = (nfft == 0) ? n_rows : nfft;
-    if (n_rows < nfft) {
-        throw std::invalid_argument(
-            "FFT columns: nfft cannot be greater than input rows");
-    }
-
     matrix::matrixc output(nfft, n_cols);
-
-    Eigen::FFT<double> fft_engine;
 
     for (size_t j = 0; j < n_cols; ++j) {
         auto col_span = input.column(j);
+        auto transformed = fft(col_span, nfft);
         auto col_fft = output.column(j);
-        fft_engine.fwd(col_fft.data(), col_span.data(), nfft);
+        std::copy(transformed.begin(), transformed.end(), col_fft.begin());
     }
 
     return output;
@@ -363,22 +353,17 @@ inline matrix::matrixc fft_rows(const matrix::real_matrix_base &input,
     size_t n_cols = input.cols();
 
     nfft = (nfft == 0) ? n_cols : nfft;
-    if (n_cols < nfft) {
-        throw std::invalid_argument(
-            "FFT rows: nfft cannot be greater than input columns");
-    }
-
     matrix::matrixc output(n_rows, nfft);
 
-    Eigen::FFT<double> fft_engine;
-
     for (size_t i = 0; i < n_rows; ++i) {
-        std::vector<double> row_vec(input.rows());
+        std::vector<double> row_vec(n_cols);
         for (size_t j = 0; j < n_cols; ++j) {
             row_vec[j] = input(i, j);
         }
-        auto row_fft = output.get_row(i);
-        fft_engine.fwd(row_fft.data(), row_vec.data(), nfft);
+        auto transformed = fft(row_vec, nfft);
+        for (size_t j = 0; j < nfft; ++j) {
+            output(i, j) = transformed[j];
+        }
     }
 
     return output;
@@ -399,22 +384,17 @@ inline matrix::matrixc fft_rows(const matrix::complex_matrix_base &input,
     size_t n_cols = input.cols();
 
     nfft = (nfft == 0) ? n_cols : nfft;
-    if (n_cols < nfft) {
-        throw std::invalid_argument(
-            "FFT rows: nfft cannot be greater than input columns");
-    }
-
     matrix::matrixc output(n_rows, nfft);
 
-    Eigen::FFT<double> fft_engine;
-
     for (size_t i = 0; i < n_rows; ++i) {
-        std::vector<std::complex<double>> row_vec(input.cols());
+        std::vector<std::complex<double>> row_vec(n_cols);
         for (size_t j = 0; j < n_cols; ++j) {
             row_vec[j] = input(i, j);
         }
-        auto row_fft = output.get_row(i);
-        fft_engine.fwd(row_fft.data(), row_vec.data(), nfft);
+        auto transformed = fft(row_vec, nfft);
+        for (size_t j = 0; j < nfft; ++j) {
+            output(i, j) = transformed[j];
+        }
     }
 
     return output;

@@ -34,45 +34,61 @@ namespace msl::signal {
  *
  * @param x First input signal.
  * @param y Second input signal.
- * @param output Output CPSD spectrum with size `nperseg`.
- * @param window Segment window coefficients, size must equal `nperseg`.
+ * Returns a full two-sided spectrum using `X * conj(Y)`. The density scale is
+ * `1 / (sampling_rate * sum(window^2))` before segment averaging.
+ *
+ * @param output Output CPSD spectrum with size `nfft`.
+ * @param window Segment window coefficients, size must equal `segment_length`.
  * @param noverlap Overlap samples between adjacent segments.
- * @param nperseg Segment length and FFT length.
+ * @param segment_length Number of input samples in each segment.
+ * @param nfft FFT length; `0` means `segment_length`.
+ * @param sampling_rate Sampling rate in Hz.
  */
 inline void cpsd_welch(std::span<const double> x,
                        std::span<const double> y,
                        std::span<std::complex<double>> output,
                        const std::vector<double> &window = hann_window(1024),
                        size_t noverlap = 512,
-                       size_t nperseg = 1024) {
-    if (nperseg == 0) {
+                       size_t segment_length = 1024,
+                       size_t nfft = 0,
+                       double sampling_rate = 1.0) {
+    if (segment_length == 0) {
         throw std::invalid_argument(
-            "CPSD Welch: nperseg must be greater than 0");
+            "CPSD Welch: segment_length must be greater than 0");
     }
-    if (noverlap >= nperseg) {
+    nfft = nfft == 0 ? segment_length : nfft;
+    if (nfft < segment_length) {
         throw std::invalid_argument(
-            "CPSD Welch: noverlap must be less than nperseg");
+            "CPSD Welch: nfft must be at least segment_length");
+    }
+    if (sampling_rate <= 0.0) {
+        throw std::invalid_argument(
+            "CPSD Welch: sampling_rate must be greater than 0");
+    }
+    if (noverlap >= segment_length) {
+        throw std::invalid_argument(
+            "CPSD Welch: noverlap must be less than segment_length");
     }
     if (x.size() != y.size()) {
         throw std::invalid_argument("Input signals must have the same length.");
     }
-    if (window.size() != nperseg) {
+    if (window.size() != segment_length) {
         throw std::invalid_argument(
-            "CPSD Welch: window size must be equal to nperseg");
+            "CPSD Welch: window size must be equal to segment_length");
     }
-    if (output.size() != nperseg) {
+    if (output.size() != nfft) {
         throw std::invalid_argument(
-            "CPSD Welch: output buffer size must be equal to nperseg");
+            "CPSD Welch: output buffer size must be equal to nfft");
     }
-    if (x.size() < nperseg || y.size() < nperseg) {
+    if (x.size() < segment_length || y.size() < segment_length) {
         throw std::invalid_argument(
             "CPSD Welch: input signals must be at least as long "
-            "as nperseg.");
+            "as segment_length.");
     }
-    size_t step = nperseg - noverlap;
-    size_t num_segments = (std::min(x.size(), y.size()) - noverlap) / step;
+    const size_t step = segment_length - noverlap;
+    const size_t num_segments = 1 + (x.size() - segment_length) / step;
 
-    std::vector<std::complex<double>> psd_accum(nperseg,
+    std::vector<std::complex<double>> psd_accum(nfft,
                                                 std::complex<double>(0.0, 0.0));
     double window_norm = 0.0;
     for (double w : window) {
@@ -87,30 +103,31 @@ inline void cpsd_welch(std::span<const double> x,
         size_t start = seg * step;
 
         std::vector<double> x_segment(x.begin() + start,
-                                      x.begin() + start + nperseg);
+                                      x.begin() + start + segment_length);
         std::vector<double> y_segment(y.begin() + start,
-                                      y.begin() + start + nperseg);
+                                      y.begin() + start + segment_length);
 
         // Apply window
-        for (size_t i = 0; i < nperseg; ++i) {
+        for (size_t i = 0; i < segment_length; ++i) {
             x_segment[i] *= window[i];
             y_segment[i] *= window[i];
         }
 
         // Compute FFTs
-        auto Xf = signal::fft(x_segment, nperseg);
-        auto Yf = signal::fft(y_segment, nperseg);
+        auto Xf = signal::fft(x_segment, nfft);
+        auto Yf = signal::fft(y_segment, nfft);
 
         // Accumulate cross power
-        for (size_t k = 0; k < nperseg; ++k) {
+        for (size_t k = 0; k < nfft; ++k) {
             psd_accum[k] += Xf[k] * std::conj(Yf[k]);
         }
     }
 
     // Average and normalize
-    for (size_t k = 0; k < nperseg; ++k) {
-        output[k] =
-            psd_accum[k] / static_cast<double>(num_segments * window_norm);
+    const double scale =
+        static_cast<double>(num_segments) * window_norm * sampling_rate;
+    for (size_t k = 0; k < nfft; ++k) {
+        output[k] = psd_accum[k] / scale;
     }
 }
 
@@ -119,19 +136,25 @@ inline void cpsd_welch(std::span<const double> x,
  *
  * @param x First input signal.
  * @param y Second input signal.
- * @param window Segment window coefficients, size must equal `nperseg`.
+ * @param window Segment window coefficients, size must equal `segment_length`.
  * @param noverlap Overlap samples between adjacent segments.
- * @param nperseg Segment length and FFT length.
- * @return CPSD spectrum with size `nperseg`.
+ * @param segment_length Number of input samples in each segment.
+ * @param nfft FFT length; `0` means `segment_length`.
+ * @param sampling_rate Sampling rate in Hz.
+ * @return Full two-sided CPSD spectrum with size `nfft`.
  */
 inline std::vector<std::complex<double>>
 cpsd_welch(std::span<const double> x,
            std::span<const double> y,
            const std::vector<double> &window = hann_window(1024),
            size_t noverlap = 512,
-           size_t nperseg = 1024) {
-    std::vector<std::complex<double>> output(nperseg);
-    cpsd_welch(x, y, output, window, noverlap, nperseg);
+           size_t segment_length = 1024,
+           size_t nfft = 0,
+           double sampling_rate = 1.0) {
+    nfft = nfft == 0 ? segment_length : nfft;
+    std::vector<std::complex<double>> output(nfft);
+    cpsd_welch(
+        x, y, output, window, noverlap, segment_length, nfft, sampling_rate);
     return output;
 }
 
@@ -194,25 +217,37 @@ cpsd(std::span<const double> x, std::span<const double> y, size_t nfft) {
  * @brief Compute power spectral density using Welch's method.
  *
  * @param x Input signal.
- * @param output Output PSD spectrum with size `nperseg`.
- * @param window Segment window coefficients, size must equal `nperseg`.
+ * @param output Output PSD spectrum with size `nfft`.
+ * @param window Segment window coefficients, size must equal `segment_length`.
  * @param noverlap Overlap samples between adjacent segments.
- * @param nperseg Segment length and FFT length.
+ * @param segment_length Number of input samples in each segment.
+ * @param nfft FFT length; `0` means `segment_length`.
+ * @param sampling_rate Sampling rate in Hz.
  */
 inline void psd_welch(std::span<const double> x,
                       std::span<double> output,
                       const std::vector<double> &window = hann_window(1024),
                       size_t noverlap = 512,
-                      size_t nperseg = 1024) {
-    if (output.size() != nperseg) {
+                      size_t segment_length = 1024,
+                      size_t nfft = 0,
+                      double sampling_rate = 1.0) {
+    nfft = nfft == 0 ? segment_length : nfft;
+    if (output.size() != nfft) {
         throw std::invalid_argument(
-            "PSD Welch: output buffer size must be equal to nperseg");
+            "PSD Welch: output buffer size must be equal to nfft");
     }
 
-    std::vector<std::complex<double>> cpsd_result(nperseg);
-    cpsd_welch(x, x, cpsd_result, window, noverlap, nperseg);
+    std::vector<std::complex<double>> cpsd_result(nfft);
+    cpsd_welch(x,
+               x,
+               cpsd_result,
+               window,
+               noverlap,
+               segment_length,
+               nfft,
+               sampling_rate);
 
-    for (size_t k = 0; k < nperseg; ++k) {
+    for (size_t k = 0; k < nfft; ++k) {
         output[k] = std::real(cpsd_result[k]);
     }
 }
@@ -221,18 +256,23 @@ inline void psd_welch(std::span<const double> x,
  * @brief Return power spectral density using Welch's method.
  *
  * @param x Input signal.
- * @param window Segment window coefficients, size must equal `nperseg`.
+ * @param window Segment window coefficients, size must equal `segment_length`.
  * @param noverlap Overlap samples between adjacent segments.
- * @param nperseg Segment length and FFT length.
- * @return PSD spectrum with size `nperseg`.
+ * @param segment_length Number of input samples in each segment.
+ * @param nfft FFT length; `0` means `segment_length`.
+ * @param sampling_rate Sampling rate in Hz.
+ * @return Full two-sided PSD spectrum with size `nfft`.
  */
 inline std::vector<double>
 psd_welch(std::span<const double> x,
           const std::vector<double> &window = hann_window(1024),
           size_t noverlap = 512,
-          size_t nperseg = 1024) {
-    std::vector<double> output(nperseg);
-    psd_welch(x, output, window, noverlap, nperseg);
+          size_t segment_length = 1024,
+          size_t nfft = 0,
+          double sampling_rate = 1.0) {
+    nfft = nfft == 0 ? segment_length : nfft;
+    std::vector<double> output(nfft);
+    psd_welch(x, output, window, noverlap, segment_length, nfft, sampling_rate);
     return output;
 }
 

@@ -19,6 +19,10 @@
 #include <array>
 #include <complex>
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/SVD>
+#include <limits>
+#include <stdexcept>
+#include <vector>
 
 #include "complex_matrix_base.hpp"
 #include "complex_matrix_owned.hpp"
@@ -30,6 +34,12 @@ namespace msl::matrix {
 // ============================================================================
 // 1. Matrix SVD Functions
 // ============================================================================
+struct truncated_svd_result {
+    real_matrix_owned U;
+    std::vector<double> singular_values;
+    real_matrix_owned V;
+};
+
 // Decompose real matrix A into U, S, V such that A = U * S * V^T
 // U and V are orthogonal matrices, S is diagonal matrix of singular values
 inline std::array<real_matrix_owned, 3> svd(const real_matrix_base &A) {
@@ -94,6 +104,92 @@ inline std::array<complex_matrix_owned, 3> svd(const complex_matrix_base &A) {
     return result;
 }
 
+/**
+ * @brief Compute the leading singular triplets of a real matrix.
+ *
+ * The returned matrices satisfy `A ~= U * diag(singular_values) * V^T`.
+ * `V` is empty when `compute_right_vectors` is false.
+ */
+inline truncated_svd_result truncated_svd(const real_matrix_base &A,
+                                          size_t rank,
+                                          bool compute_right_vectors = true) {
+    const size_t max_rank = std::min(A.rows(), A.cols());
+    if (rank == 0 || rank > max_rank) {
+        throw std::invalid_argument(
+            "Truncated SVD: rank must be in [1, min(rows, cols)]");
+    }
+
+    const auto eig_A = eigen_interface::as_eigen(A);
+    unsigned int options = Eigen::ComputeThinU;
+    if (compute_right_vectors) {
+        options |= Eigen::ComputeThinV;
+    }
+    Eigen::JacobiSVD<Eigen::MatrixXd> decomposition(eig_A, options);
+
+    truncated_svd_result result;
+    result.U = eigen_interface::from_eigen(
+        decomposition.matrixU().leftCols(static_cast<Eigen::Index>(rank)));
+    result.singular_values.resize(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        result.singular_values[i] =
+            decomposition.singularValues()(static_cast<Eigen::Index>(i));
+    }
+    if (compute_right_vectors) {
+        result.V = eigen_interface::from_eigen(
+            decomposition.matrixV().leftCols(static_cast<Eigen::Index>(rank)));
+    }
+    return result;
+}
+
+namespace detail {
+inline real_matrix_owned pinv_impl(const real_matrix_base &A,
+                                   double tolerance,
+                                   bool use_default_tolerance) {
+    const auto eig_A = eigen_interface::as_eigen(A);
+    Eigen::JacobiSVD<Eigen::MatrixXd> decomposition(
+        eig_A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    const auto &singular_values = decomposition.singularValues();
+    if (use_default_tolerance) {
+        const double largest =
+            singular_values.size() == 0 ? 0.0 : singular_values(0);
+        tolerance = static_cast<double>(std::max(A.rows(), A.cols()))
+                    * std::numeric_limits<double>::epsilon() * largest;
+    }
+
+    Eigen::VectorXd inverse_values = singular_values;
+    for (Eigen::Index i = 0; i < inverse_values.size(); ++i) {
+        inverse_values(i) =
+            singular_values(i) > tolerance ? 1.0 / singular_values(i) : 0.0;
+    }
+
+    return eigen_interface::from_eigen(decomposition.matrixV()
+                                       * inverse_values.asDiagonal()
+                                       * decomposition.matrixU().adjoint());
+}
+} // namespace detail
+
+/**
+ * @brief Compute the Moore-Penrose pseudoinverse of a real matrix.
+ *
+ * Singular values less than or equal to
+ * `max(rows, cols) * epsilon * largest_singular_value` are discarded.
+ */
+inline real_matrix_owned pinv(const real_matrix_base &A) {
+    return detail::pinv_impl(A, 0.0, true);
+}
+
+/**
+ * @brief Compute the Moore-Penrose pseudoinverse with an explicit tolerance.
+ */
+inline real_matrix_owned pinv(const real_matrix_base &A, double tolerance) {
+    if (tolerance < 0.0) {
+        throw std::invalid_argument(
+            "Pseudoinverse: tolerance must be non-negative");
+    }
+    return detail::pinv_impl(A, tolerance, false);
+}
+
 // ============================================================================
 // 2. Matrix Eigenvalue Functions
 // ============================================================================
@@ -123,7 +219,7 @@ inline std::array<msl::matrix::matrixc, 2> eig(const real_matrix_base &A) {
     std::copy(eig_V.data(), eig_V.data() + eig_V.size(), V.data());
     std::fill(D.data(), D.data() + D.size(), 0.0);
     for (size_t i = 0; i < n; ++i) {
-        D(i, i) = eig_D(i).real(); // Use real part for diagonal
+        D(i, i) = eig_D(i);
     }
 
     return result;
@@ -158,7 +254,7 @@ inline std::array<msl::matrix::matrixc, 2> eig(const real_matrix_base &A,
     std::copy(eig_V.data(), eig_V.data() + eig_V.size(), V.data());
     std::fill(D.data(), D.data() + D.size(), 0.0);
     for (size_t i = 0; i < n; ++i) {
-        D(i, i) = eig_D(i).real(); // Use real part for diagonal
+        D(i, i) = eig_D(i);
     }
 
     return result;

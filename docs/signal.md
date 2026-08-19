@@ -191,10 +191,16 @@ Window types: `rectangular`, `hamming`, `hanning`, `blackman`. Transition band c
 ```cpp
 // PSD (auto-power)
 auto psd = msl::signal::psd_welch(x);     // default: Hann window, 1024 pts, 50% overlap
-auto psd = msl::signal::psd_welch(x, window, noverlap, nperseg);
+auto psd = msl::signal::psd_welch(x, window, noverlap, segment_length);
 
 // Cross-PSD
-auto cpsd = msl::signal::cpsd_welch(x, y, window, noverlap, nperseg);
+auto cpsd = msl::signal::cpsd_welch(
+    x, y, window, noverlap, segment_length);
+
+// 256-sample segments, 2048-point FFT, density in power/Hz at 100 Hz
+auto cpsd = msl::signal::cpsd_welch(
+    x, y, window, noverlap, 256, 2048, 100.0);
+auto frequencies = msl::signal::fft_frequencies(2048, 100.0);
 
 // Single-frame PSD
 auto psd = msl::signal::psd(x, nfft);
@@ -207,7 +213,25 @@ auto cpsd = msl::signal::cpsd(x, y, nfft);
 |-----------|---------|-------------|
 | `window` | `hann_window(1024)` | Window coefficients |
 | `noverlap` | `512` | Overlap samples (default: 50%) |
-| `nperseg` | `1024` | Segment length (= FFT length) |
+| `segment_length` | `1024` | Number of windowed samples per segment |
+| `nfft` | `0` | FFT length; `0` selects `segment_length`, otherwise it must be at least the segment length |
+| `sampling_rate` | `1.0` | Samples per second used for power/Hz density scaling |
+
+Welch functions return the full two-sided `nfft` spectrum using
+`X * conj(Y)`. The normalization is the segment average divided by
+`sampling_rate * sum(window^2)`. A MATLAB-style one-sided spectrum for real
+signals can be formed from bins `0..nfft/2`, doubling interior positive
+frequency bins but not DC or the Nyquist bin.
+
+## Unbiased Cross-Covariance (`cross_covariance.hpp`)
+
+```cpp
+auto covariance = msl::signal::xcov_unbiased(x, y, max_lag);
+```
+
+The result is ordered from `-max_lag` through `+max_lag`. Both means are
+removed, and each lag is divided by `N - abs(lag)`, matching MATLAB
+`xcov(x, y, max_lag, "unbiased")` for equal-length real inputs.
 
 ## Window Functions (`window.hpp`)
 

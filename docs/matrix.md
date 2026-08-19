@@ -196,6 +196,30 @@ auto [U, S, V] = msl::matrix::svd(A);
 ```
 `U` is `m×m`, `S` is `m×n` diagonal, `V` is `n×n`.
 
+For callers that only consume the leading singular triplets:
+
+```cpp
+auto leading = msl::matrix::truncated_svd(A, 30, false);
+// leading.U: m×30, leading.singular_values: 30 values
+// leading.V is omitted because compute_right_vectors=false
+```
+
+The returned singular values are descending. This interface limits the returned
+matrices to rank `r`; the current Eigen JacobiSVD backend still computes the
+thin decomposition internally, so callers should benchmark very large square
+problems in their deployment toolchain.
+
+### Moore-Penrose Pseudoinverse
+
+```cpp
+auto A_plus = msl::matrix::pinv(A);        // MATLAB-like default tolerance
+auto A_rank = msl::matrix::pinv(A, 1e-8); // explicit singular-value tolerance
+```
+
+The output is `n×m` for an `m×n` input. The default tolerance is
+`max(m,n) * epsilon * largest_singular_value`; singular values less than or
+equal to the selected tolerance are discarded.
+
 ### Eigenvalue Decomposition
 
 ```cpp
@@ -204,6 +228,8 @@ auto [V, D] = msl::matrix::eig(A, B);           // generalized eigenvalue
 // A * V = V * D  or  A * V = B * V * D
 ```
 Returns complex matrices (`matrixc`). `V` contains eigenvectors, `D` is diagonal of eigenvalues.
+For a real nonsymmetric input, conjugate eigenvalues and eigenvectors retain
+their complex components.
 
 ## Eigen3 Interface
 

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <filesystem>
@@ -88,6 +89,100 @@ int test_fft() {
     EXPECT_NEAR(mag[0], 10.0, 1e-12);
     EXPECT_NEAR(mag[1], std::sqrt(8.0), 1e-12);
 
+    std::vector<double> short_input{1.0, -2.0, 0.5};
+    std::vector<double> explicit_padding(8, 0.0);
+    std::copy(short_input.begin(), short_input.end(), explicit_padding.begin());
+    const auto automatic = signal::fft(short_input, 8);
+    const auto explicit_result = signal::fft(explicit_padding);
+    for (size_t i = 0; i < automatic.size(); ++i) {
+        EXPECT_CPLX_NEAR(automatic[i], explicit_result[i], 1e-12);
+    }
+    const auto padded_round_trip = signal::ifft_real(automatic);
+    for (size_t i = 0; i < short_input.size(); ++i) {
+        EXPECT_NEAR(padded_round_trip[i], short_input[i], 1e-12);
+    }
+    for (size_t i = short_input.size(); i < padded_round_trip.size(); ++i) {
+        EXPECT_NEAR(padded_round_trip[i], 0.0, 1e-12);
+    }
+
+    std::vector<std::complex<double>> complex_input{{1.0, 2.0}, {-0.5, 1.0}};
+    std::vector<std::complex<double>> complex_padding(4, {0.0, 0.0});
+    std::copy(
+        complex_input.begin(), complex_input.end(), complex_padding.begin());
+    const auto complex_automatic = signal::fft(complex_input, 4);
+    const auto complex_explicit = signal::fft(complex_padding);
+    for (size_t i = 0; i < complex_automatic.size(); ++i) {
+        EXPECT_CPLX_NEAR(complex_automatic[i], complex_explicit[i], 1e-12);
+    }
+
+    matrix::matrixd samples(2, 2, {1.0, 2.0, 3.0, 4.0});
+    const auto row_fft = signal::fft_rows(samples, 4);
+    const auto expected_row = signal::fft(std::vector<double>{1.0, 2.0}, 4);
+    for (size_t k = 0; k < 4; ++k) {
+        EXPECT_CPLX_NEAR(row_fft(0, k), expected_row[k], 1e-12);
+    }
+    const auto column_fft = signal::fft_columns(samples, 4);
+    const auto expected_column = signal::fft(std::vector<double>{1.0, 3.0}, 4);
+    for (size_t k = 0; k < 4; ++k) {
+        EXPECT_CPLX_NEAR(column_fft(k, 0), expected_column[k], 1e-12);
+    }
+
+    return 0;
+}
+
+int test_welch_and_covariance() {
+    const std::vector<double> x{1.0, 2.0, 0.0, -1.0, 3.0, 2.0};
+    const std::vector<double> y{0.0, 1.0, 2.0, 1.0, -1.0, 2.0};
+    const std::vector<double> window(4, 1.0);
+    constexpr size_t segment_length = 4;
+    constexpr size_t overlap = 2;
+    constexpr size_t nfft = 8;
+    constexpr double sampling_rate = 8.0;
+
+    const auto estimate = signal::cpsd_welch(
+        x, y, window, overlap, segment_length, nfft, sampling_rate);
+    const std::vector<std::complex<double>> expected_spectrum{
+        {0.375, 0.0},
+        {0.05981917382415922, 0.05445752147247765},
+        {-0.125, 0.28125},
+        {-0.02856917382415922, 0.21070752147247765},
+        {-0.0625, 0.0},
+        {-0.02856917382415922, -0.21070752147247765},
+        {-0.125, -0.28125},
+        {0.05981917382415922, -0.05445752147247765}};
+    for (size_t k = 0; k < nfft; ++k) {
+        EXPECT_CPLX_NEAR(estimate[k], expected_spectrum[k], 1e-12);
+    }
+
+    const auto reverse = signal::cpsd_welch(
+        y, x, window, overlap, segment_length, nfft, sampling_rate);
+    const auto auto_power = signal::psd_welch(
+        x, window, overlap, segment_length, nfft, sampling_rate);
+    for (size_t k = 0; k < nfft; ++k) {
+        EXPECT_CPLX_NEAR(reverse[k], std::conj(estimate[k]), 1e-12);
+        EXPECT_TRUE(auto_power[k] >= -1e-14);
+    }
+    const auto frequencies = signal::fft_frequencies(nfft, sampling_rate);
+    EXPECT_NEAR(frequencies[1] - frequencies[0], 1.0, 1e-12);
+
+    const std::vector<double> covariance_x{1.0, 2.0, 3.0};
+    const std::vector<double> covariance_y{3.0, 1.0, 0.0};
+    const auto covariance =
+        signal::xcov_unbiased(covariance_x, covariance_y, 2);
+    const std::vector<double> expected_covariance{
+        4.0 / 3.0, 1.0 / 6.0, -1.0, -1.0 / 6.0, 5.0 / 3.0};
+    EXPECT_EQ(covariance.size(), expected_covariance.size());
+    for (size_t i = 0; i < covariance.size(); ++i) {
+        EXPECT_NEAR(covariance[i], expected_covariance[i], 1e-12);
+    }
+    const auto reverse_covariance =
+        signal::xcov_unbiased(covariance_y, covariance_x, 2);
+    for (size_t i = 0; i < covariance.size(); ++i) {
+        EXPECT_NEAR(covariance[i],
+                    reverse_covariance[covariance.size() - 1 - i],
+                    1e-12);
+    }
+
     return 0;
 }
 
@@ -136,7 +231,8 @@ int test_windows_and_filter() {
 }
 
 int main() {
-    int result = test_fft() + test_windows_and_filter();
+    int result =
+        test_fft() + test_welch_and_covariance() + test_windows_and_filter();
 
     auto compare_dir =
         project_root() / "test_result" / "signal" / "matlab_compare";

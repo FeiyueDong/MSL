@@ -186,6 +186,7 @@
     <ClInclude Include="..\..\src\msl\polynomial\polynomial.hpp" />
     <ClInclude Include="..\..\src\msl\signal.hpp" />
     <ClInclude Include="..\..\src\msl\signal\butterworth_filter.hpp" />
+    <ClInclude Include="..\..\src\msl\signal\cross_covariance.hpp" />
     <ClInclude Include="..\..\src\msl\signal\detrend.hpp" />
     <ClInclude Include="..\..\src\msl\signal\fft.hpp" />
     <ClInclude Include="..\..\src\msl\signal\filter.hpp" />
