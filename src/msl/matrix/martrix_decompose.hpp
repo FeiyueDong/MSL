@@ -400,18 +400,44 @@ inline std::array<msl::matrix::matrixc, 2> eig(const real_matrix_base &A,
 // ============================================================================
 // 3. Matrix LU Decomposition Functions
 // ============================================================================
-// Decompose real matrix A into L and U such that A = L * U
-// L is lower triangular matrix, U is upper triangular matrix
-inline std::array<real_matrix_owned, 2> lu(const real_matrix_base &A) {
+/**
+ * @brief Result of a real LU decomposition with partial pivoting.
+ *
+ * The decomposition satisfies `P * A = L * U`, where `P` is the row
+ * permutation defined by `permutation`: row `i` of `P * A` is row
+ * `permutation[i]` of `A`.
+ */
+struct lu_result {
+    std::vector<size_t> permutation; // Row permutation of P * A = L * U
+    real_matrix_owned L;             // Unit lower triangular matrix
+    real_matrix_owned U;             // Upper triangular matrix
+};
+
+/**
+ * @brief Result of a complex LU decomposition with partial pivoting.
+ *
+ * The decomposition satisfies `P * A = L * U`, where `P` is the row
+ * permutation defined by `permutation`: row `i` of `P * A` is row
+ * `permutation[i]` of `A`.
+ */
+struct complex_lu_result {
+    std::vector<size_t> permutation; // Row permutation of P * A = L * U
+    complex_matrix_owned L;          // Unit lower triangular matrix
+    complex_matrix_owned U;          // Upper triangular matrix
+};
+
+// Decompose real matrix A with partial pivoting such that P * A = L * U
+// L is unit lower triangular, U is upper triangular, P is a row permutation
+inline lu_result lu(const real_matrix_base &A) {
     if (A.rows() != A.cols()) {
         throw std::invalid_argument(
             "LU decomposition requires a square matrix");
     }
 
     size_t n = A.rows();
-    std::array<real_matrix_owned, 2> result;
-    auto &L = result[0] = real_matrix_owned(n, n); // Lower triangular matrix
-    auto &U = result[1] = real_matrix_owned(n, n); // Upper triangular matrix
+    lu_result result;
+    result.L = real_matrix_owned(n, n);
+    result.U = real_matrix_owned(n, n);
 
     auto eig_A = eigen_interface::as_eigen(A);
     Eigen::PartialPivLU<Eigen::MatrixXd> lu(eig_A);
@@ -422,32 +448,41 @@ inline std::array<real_matrix_owned, 2> lu(const real_matrix_base &A) {
     // Copy L
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j <= i; ++j) {
-            L(i, j) = eig_L(i, j);
+            result.L(i, j) = eig_L(i, j);
         }
     }
 
     // Copy U
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = i; j < n; ++j) {
-            U(i, j) = eig_U(i, j);
+            result.U(i, j) = eig_U(i, j);
         }
+    }
+
+    // Row permutation: (P * A)(i, j) = A(permutation[i], j)
+    result.permutation.resize(n);
+    const auto &indices = lu.permutationP().indices();
+    for (size_t i = 0; i < n; ++i) {
+        const auto permuted_row =
+            static_cast<size_t>(indices[static_cast<Eigen::Index>(i)]);
+        result.permutation[permuted_row] = i;
     }
 
     return result;
 }
 
-// Decompose complex matrix A into L and U such that A = L * U
-// L is lower triangular matrix, U is upper triangular matrix
-inline std::array<complex_matrix_owned, 2> lu(const complex_matrix_base &A) {
+// Decompose complex matrix A with partial pivoting such that P * A = L * U
+// L is unit lower triangular, U is upper triangular, P is a row permutation
+inline complex_lu_result lu(const complex_matrix_base &A) {
     if (A.rows() != A.cols()) {
         throw std::invalid_argument(
             "LU decomposition requires a square matrix");
     }
 
     size_t n = A.rows();
-    std::array<complex_matrix_owned, 2> result;
-    auto &L = result[0] = complex_matrix_owned(n, n); // Lower triangular matrix
-    auto &U = result[1] = complex_matrix_owned(n, n); // Upper triangular matrix
+    complex_lu_result result;
+    result.L = complex_matrix_owned(n, n);
+    result.U = complex_matrix_owned(n, n);
 
     auto eig_A = eigen_interface::as_eigen(A);
     Eigen::PartialPivLU<
@@ -464,15 +499,24 @@ inline std::array<complex_matrix_owned, 2> lu(const complex_matrix_base &A) {
     // Copy L
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j <= i; ++j) {
-            L(i, j) = eig_L(i, j);
+            result.L(i, j) = eig_L(i, j);
         }
     }
 
     // Copy U
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = i; j < n; ++j) {
-            U(i, j) = eig_U(i, j);
+            result.U(i, j) = eig_U(i, j);
         }
+    }
+
+    // Row permutation: (P * A)(i, j) = A(permutation[i], j)
+    result.permutation.resize(n);
+    const auto &indices = lu.permutationP().indices();
+    for (size_t i = 0; i < n; ++i) {
+        const auto permuted_row =
+            static_cast<size_t>(indices[static_cast<Eigen::Index>(i)]);
+        result.permutation[permuted_row] = i;
     }
 
     return result;

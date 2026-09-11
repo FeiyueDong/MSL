@@ -115,6 +115,37 @@ static bool columns_are_orthonormal(const matrix::real_matrix_base &vectors,
     return true;
 }
 
+static bool lower_unit_triangular(const matrix::real_matrix_base &A,
+                                  double tolerance) {
+    if (A.rows() != A.cols()) {
+        return false;
+    }
+    for (size_t j = 0; j < A.cols(); ++j) {
+        for (size_t i = 0; i < A.rows(); ++i) {
+            if (i == j) {
+                if (std::abs(A(i, j) - 1.0) > tolerance) {
+                    return false;
+                }
+            } else if (i < j && std::abs(A(i, j)) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool upper_triangular(const matrix::real_matrix_base &A,
+                             double tolerance) {
+    for (size_t j = 0; j < A.cols(); ++j) {
+        for (size_t i = j + 1; i < A.rows(); ++i) {
+            if (std::abs(A(i, j)) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static double singular_triplet_relative_residual(
     const matrix::real_matrix_base &A,
     const matrix::truncated_svd_result &decomposition,
@@ -504,6 +535,74 @@ int test_decompositions() {
         for (size_t j = 0; j < A.cols(); ++j)
             for (size_t i = 0; i < A.rows(); ++i)
                 EXPECT_CPLX_NEAR(A(i, j), A_reconstructed(i, j), 1e-10);
+    }
+    while (0)
+        ;
+
+    TEST_CASE("LU decomposition preserves partial pivoting") {
+        const auto check_real = [](const matrix::matrixd &A, double tol) {
+            const auto result = matrix::lu(A);
+            const size_t n = A.rows();
+            EXPECT_EQ(result.permutation.size(), n);
+            EXPECT_EQ(result.L.rows(), n);
+            EXPECT_EQ(result.L.cols(), n);
+            EXPECT_EQ(result.U.rows(), n);
+            EXPECT_EQ(result.U.cols(), n);
+
+            matrix::matrixd PA(n, n);
+            for (size_t i = 0; i < n; ++i) {
+                for (size_t j = 0; j < n; ++j) {
+                    PA(i, j) = A(result.permutation[i], j);
+                }
+            }
+            EXPECT_TRUE(matrix_near(PA, result.L * result.U, tol));
+            EXPECT_TRUE(lower_unit_triangular(result.L, tol));
+            EXPECT_TRUE(upper_triangular(result.U, tol));
+        };
+
+        // No pivoting required
+        check_real(matrix::matrixd(2, 2, {2.0, 1.0, 1.0, 3.0}), 1e-12);
+        // Pivoting required
+        check_real(matrix::matrixd(2, 2, {0.0, 1.0, 1.0, 1.0}), 1e-12);
+        check_real(matrix::matrixd(
+                       3, 3, {0.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.0, 1.0}),
+                   1e-12);
+
+        // Complex pivoting case
+        matrix::matrixc A_complex(
+            2, 2, {{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {0.0, 0.0}});
+        const auto complex_result = matrix::lu(A_complex);
+        EXPECT_EQ(complex_result.permutation.size(), 2);
+        EXPECT_EQ(complex_result.L.rows(), 2);
+        EXPECT_EQ(complex_result.U.rows(), 2);
+        matrix::matrixc complex_PA(2, 2);
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                complex_PA(i, j) = A_complex(complex_result.permutation[i], j);
+            }
+        }
+        const auto complex_LU = complex_result.L * complex_result.U;
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                EXPECT_CPLX_NEAR(complex_PA(i, j), complex_LU(i, j), 1e-12);
+            }
+        }
+
+        // Non-square matrices are rejected
+        bool threw_real = false;
+        try {
+            (void)matrix::lu(matrix::matrixd(2, 3));
+        } catch (const std::invalid_argument &) {
+            threw_real = true;
+        }
+        EXPECT_TRUE(threw_real);
+        bool threw_complex = false;
+        try {
+            (void)matrix::lu(matrix::matrixc(2, 3));
+        } catch (const std::invalid_argument &) {
+            threw_complex = true;
+        }
+        EXPECT_TRUE(threw_complex);
     }
     while (0)
         ;

@@ -184,9 +184,14 @@ Returns `std::array<matrixd, 2>` — can use structured bindings.
 ### LU Decomposition
 
 ```cpp
-auto [L, U] = msl::matrix::lu(A);
+auto result = msl::matrix::lu(A);
+// result.permutation: row permutation
+// result.L: unit lower triangular
+// result.U: upper triangular
 ```
-`A` must be square. `L` is unit lower triangular, `U` is upper triangular.
+`A` must be square. Partial pivoting is used, so the decomposition satisfies
+`P * A = L * U`, where row `i` of `P * A` is row `result.permutation[i]` of
+`A`.
 
 ### SVD Decomposition
 
