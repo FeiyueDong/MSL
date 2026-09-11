@@ -1,4 +1,6 @@
-script_dir = fileparts(mfilename('fullpath'));
+if ~exist('script_dir', 'var') || isempty(script_dir)
+    script_dir = fileparts(mfilename('fullpath'));
+end
 repo_root = fullfile(script_dir, '..', '..', '..');
 data_dir = fullfile(repo_root, 'test_result', 'integral', 'matlab_compare');
 
