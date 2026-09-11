@@ -169,8 +169,11 @@ Free functions in `msl::matrix` namespace:
 | `conjugate_transpose` | `matrixc conjugate_transpose(const complex_matrix_base &A)` | Conjugate transpose (Hermitian) |
 | `trace` | `double trace(const real_matrix_base &A)` | Trace of square matrix |
 | `inverse` | `matrixd inverse(const real_matrix_base &A)` | Matrix inverse (via Eigen) |
-| `adjoint` | `matrixd adjoint(const matrixd &A)` | Classical adjoint (adjugate) |
 | `determinant` | `double determinant(const real_matrix_base &A)` | Determinant (via Eigen) |
+
+The adjoint (conjugate transpose) is `conjugate_transpose` for complex matrices
+and `transpose` for real matrices. No `adjoint()` alias is provided, to avoid
+confusion with the classical adjugate.
 
 ## Matrix Decompositions
 

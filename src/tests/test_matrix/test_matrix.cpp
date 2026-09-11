@@ -489,6 +489,37 @@ int test_base_op() {
     while (0)
         ;
 
+    // 10) transpose and conjugate transpose (adjoint) semantics
+    TEST_CASE("transpose and conjugate transpose") {
+        matrix::matrixd A(2, 3, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+        const auto At = matrix::transpose(A);
+        EXPECT_EQ(At.rows(), 3);
+        EXPECT_EQ(At.cols(), 2);
+        for (size_t i = 0; i < A.rows(); ++i) {
+            for (size_t j = 0; j < A.cols(); ++j) {
+                EXPECT_EQ(At(j, i), A(i, j));
+            }
+        }
+
+        matrix::matrixc C(2, 3);
+        for (size_t i = 0; i < C.rows(); ++i) {
+            for (size_t j = 0; j < C.cols(); ++j) {
+                C(i, j) = std::complex<double>(static_cast<double>(i + 1),
+                                               static_cast<double>(j + 1));
+            }
+        }
+        const auto Ch = matrix::conjugate_transpose(C);
+        EXPECT_EQ(Ch.rows(), 3);
+        EXPECT_EQ(Ch.cols(), 2);
+        for (size_t i = 0; i < C.rows(); ++i) {
+            for (size_t j = 0; j < C.cols(); ++j) {
+                EXPECT_CPLX_NEAR(Ch(j, i), std::conj(C(i, j)), 1e-12);
+            }
+        }
+    }
+    while (0)
+        ;
+
     // 总结
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures
               << "\n";

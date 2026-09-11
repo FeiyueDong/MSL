@@ -117,36 +117,6 @@ inline complex_matrix_owned inverse(const complex_matrix_base &A) {
     return A_inv;
 }
 
-// - adjoint
-inline real_matrix_owned adjoint(const real_matrix_owned &A) {
-    if (A.rows() != A.cols()) {
-        throw std::invalid_argument("Adjoint requires a square matrix");
-    }
-
-    auto eig_A = eigen_interface::as_eigen(A);
-    Eigen::MatrixXd eig_A_adj = eig_A.adjoint();
-
-    return eigen_interface::from_eigen(eig_A_adj);
-}
-
-inline complex_matrix_owned adjoint(const complex_matrix_owned &A) {
-    if (A.rows() != A.cols()) {
-        throw std::invalid_argument("Adjoint requires a square matrix");
-    }
-
-    size_t n = A.rows();
-    complex_matrix_owned A_adj(n, n);
-
-    auto eig_A = eigen_interface::as_eigen(A);
-    Eigen::MatrixXcd eig_A_adj = eig_A.adjoint();
-
-    // Copy back
-    std::copy(
-        eig_A_adj.data(), eig_A_adj.data() + eig_A_adj.size(), A_adj.data());
-
-    return A_adj;
-}
-
 // - determinant
 inline double determinant(const real_matrix_base &A) {
     if (A.rows() != A.cols()) {
