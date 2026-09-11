@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux-gcc:
+    name: Linux GCC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeigen3-dev
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+      - name: Configure
+        run: xmake f -p linux -a x86_64 -m release -y
+      - name: Build
+        run: xmake -y
+      - name: Run C++ tests
+        shell: bash
+        run: |
+          for t in test_matrix test_signal test_integral test_difference \
+                   test_interp test_polynomial test_equation test_ode; do
+            xmake run "$t" || exit 1
+          done
+
+  linux-clang:
+    name: Linux Clang
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeigen3-dev clang
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+      - name: Configure
+        run: xmake f -p linux -a x86_64 -m release --toolchain=clang -y
+      - name: Build
+        run: xmake -y
+      - name: Run C++ tests
+        shell: bash
+        run: |
+          for t in test_matrix test_signal test_integral test_difference \
+                   test_interp test_polynomial test_equation test_ode; do
+            xmake run "$t" || exit 1
+          done
+
+  windows-msvc:
+    name: Windows MSVC
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Eigen
+        shell: pwsh
+        run: vcpkg install eigen3:x64-windows
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+      - name: Configure
+        env:
+          EIGEN_INCLUDE_DIR: ${{ env.VCPKG_INSTALLATION_ROOT }}\installed\x64-windows\include
+        run: xmake f -p windows -a x64 -m release -y
+      - name: Build
+        run: xmake -y
+      - name: Run C++ tests
+        shell: pwsh
+        run: |
+          $tests = @('test_matrix', 'test_signal', 'test_integral',
+                     'test_difference', 'test_interp', 'test_polynomial',
+                     'test_equation', 'test_ode')
+          foreach ($test in $tests) {
+            xmake run $test
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }

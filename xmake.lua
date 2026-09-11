@@ -16,10 +16,6 @@ elseif is_plat("mingw") then
         set_config("sdk", msys2_root)
     end
     set_toolchains("gcc")
-elseif is_plat("linux") then
-    set_toolchains("gcc")
-elseif is_plat("macosx") then
-    set_toolchains("clang")
 end
 
 set_languages("c++20")
