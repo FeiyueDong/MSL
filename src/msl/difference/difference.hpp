@@ -27,6 +27,52 @@
 
 namespace msl::difference {
 
+namespace detail {
+/**
+ * @brief Reject non-positive uniform spacing.
+ */
+inline void validate_spacing(double dx) {
+    if (!(dx > 0.0)) {
+        throw std::invalid_argument("Difference: spacing dx must be positive");
+    }
+}
+
+/**
+ * @brief Reject empty or non-increasing coordinate arrays.
+ */
+inline void validate_coordinates(std::span<const double> x) {
+    if (x.size() < 2) {
+        throw std::invalid_argument(
+            "Difference: coordinate array must contain at least 2 points");
+    }
+    for (size_t i = 1; i < x.size(); ++i) {
+        if (!(x[i] > x[i - 1])) {
+            throw std::invalid_argument(
+                "Difference: coordinates must be strictly increasing");
+        }
+    }
+}
+
+/**
+ * @brief Three-point central difference for non-uniform coordinates.
+ *
+ * The derivative at the center point is the exact derivative of the
+ * quadratic through the three samples.
+ */
+inline double nonuniform_central_difference(double x_left,
+                                            double x_center,
+                                            double x_right,
+                                            double y_left,
+                                            double y_center,
+                                            double y_right) {
+    const double dx_left = x_center - x_left;
+    const double dx_right = x_right - x_center;
+    return (dx_left * (y_right - y_center) / dx_right
+            + dx_right * (y_center - y_left) / dx_left)
+           / (dx_left + dx_right);
+}
+} // namespace detail
+
 // ============================================================================
 // Difference (First-order)
 // ============================================================================
@@ -64,6 +110,10 @@ inline void diff(std::span<const double> y, std::span<double> result) {
  * @return Vector of differences (size n-1)
  */
 inline std::vector<double> diff(std::span<const double> y) {
+    if (y.size() < 2) {
+        throw std::invalid_argument("Diff: need at least 2 points for diff");
+    }
+
     std::vector<double> result(y.size() - 1);
 
     diff(y, result);
@@ -139,6 +189,8 @@ inline void forward_gradient(std::span<const double> y,
         throw std::invalid_argument("Gradient: span must have size n-1");
     }
 
+    detail::validate_spacing(dx);
+
     // Forward difference, the first point is 0
     for (size_t i = 0; i < y.size() - 1; ++i) {
         grad[i] = (y[i + 1] - y[i]) / dx;
@@ -157,6 +209,11 @@ inline void forward_gradient(std::span<const double> y,
  */
 inline std::vector<double> forward_gradient(std::span<const double> y,
                                             double dx = 1.0) {
+    if (y.size() < 2) {
+        throw std::invalid_argument(
+            "Gradient: need at least 2 points for gradient");
+    }
+
     std::vector<double> grad(y.size() - 1);
 
     forward_gradient(y, grad, dx);
@@ -189,6 +246,8 @@ inline void forward_gradient(std::span<const double> y,
         throw std::invalid_argument("Gradient: span must have size n-1");
     }
 
+    detail::validate_coordinates(x);
+
     // Forward difference, the first point is 0
     for (size_t i = 0; i < y.size() - 1; ++i) {
         double dx_local = x[i + 1] - x[i];
@@ -208,6 +267,11 @@ inline void forward_gradient(std::span<const double> y,
  */
 inline std::vector<double> forward_gradient(std::span<const double> y,
                                             std::span<const double> x) {
+    if (y.size() < 2) {
+        throw std::invalid_argument(
+            "Gradient: need at least 2 points for gradient");
+    }
+
     std::vector<double> grad(y.size() - 1);
 
     forward_gradient(y, grad, x);
@@ -227,6 +291,8 @@ inline std::vector<double> forward_gradient(std::span<const double> y,
 inline matrix::matrixd forward_gradient(const matrix::real_matrix_base &mat,
                                         double dx = 1.0,
                                         int axis = 0) {
+    detail::validate_spacing(dx);
+
     if (axis == 0) {
         // Gradient along rows (vertical direction)
         if (mat.rows() < 2) {
@@ -290,6 +356,8 @@ inline matrix::matrixd forward_gradient(const matrix::real_matrix_base &mat,
                 "Gradient: x size must be number of rows for axis=0");
         }
 
+        detail::validate_coordinates(x);
+
         matrix::matrixd grad(mat.rows() - 1, mat.cols());
 
         for (size_t j = 0; j < mat.cols(); ++j) {
@@ -311,6 +379,8 @@ inline matrix::matrixd forward_gradient(const matrix::real_matrix_base &mat,
             throw std::invalid_argument(
                 "Gradient: x size must be number of cols for axis=1");
         }
+
+        detail::validate_coordinates(x);
 
         matrix::matrixd grad(mat.rows(), mat.cols() - 1);
 
@@ -355,6 +425,8 @@ inline void central_gradient(std::span<const double> y,
             "Gradient: span must have same size as input");
     }
 
+    detail::validate_spacing(dx);
+
     // Forward difference at first point
     grad[0] = (y[1] - y[0]) / dx;
 
@@ -379,6 +451,11 @@ inline void central_gradient(std::span<const double> y,
  */
 inline std::vector<double> central_gradient(std::span<const double> y,
                                             double dx = 1.0) {
+    if (y.size() < 2) {
+        throw std::invalid_argument(
+            "Gradient: need at least 2 points for gradient");
+    }
+
     std::vector<double> grad(y.size());
 
     central_gradient(y, grad, dx);
@@ -412,19 +489,16 @@ inline void central_gradient(std::span<const double> x,
             "Gradient: span must have same size as input");
     }
 
+    detail::validate_coordinates(x);
+
     // Forward difference at first point
     double dx0 = x[1] - x[0];
     grad[0] = (y[1] - y[0]) / dx0;
 
     // Central difference at interior points
     for (size_t i = 1; i < y.size() - 1; ++i) {
-        double dx_left = x[i] - x[i - 1];
-        double dx_right = x[i + 1] - x[i];
-
-        // Weighted central difference for non-uniform grid
-        grad[i] = (dx_left * (y[i + 1] - y[i]) / dx_right
-                   + dx_right * (y[i] - y[i - 1]) / dx_left)
-                  / (dx_left + dx_right);
+        grad[i] = detail::nonuniform_central_difference(
+            x[i - 1], x[i], x[i + 1], y[i - 1], y[i], y[i + 1]);
     }
 
     // Backward difference at last point
@@ -445,6 +519,11 @@ inline void central_gradient(std::span<const double> x,
  */
 inline std::vector<double> central_gradient(std::span<const double> x,
                                             std::span<const double> y) {
+    if (y.size() < 2) {
+        throw std::invalid_argument(
+            "Gradient: need at least 2 points for gradient");
+    }
+
     std::vector<double> grad(y.size());
 
     central_gradient(x, y, grad);
@@ -464,6 +543,8 @@ inline std::vector<double> central_gradient(std::span<const double> x,
 inline matrix::matrixd central_gradient(const matrix::real_matrix_base &mat,
                                         double dx = 1.0,
                                         int axis = 0) {
+    detail::validate_spacing(dx);
+
     if (axis == 0) {
         // Gradient along rows (vertical direction)
         if (mat.rows() < 2) {
@@ -538,6 +619,8 @@ inline matrix::matrixd central_gradient(const matrix::real_matrix_base &mat,
                 "Gradient: x size must be number of rows for axis=0");
         }
 
+        detail::validate_coordinates(x);
+
         matrix::matrixd grad(mat.rows(), mat.cols());
 
         for (size_t j = 0; j < mat.cols(); ++j) {
@@ -547,7 +630,12 @@ inline matrix::matrixd central_gradient(const matrix::real_matrix_base &mat,
             // Central at interior rows
             for (size_t i = 1; i < mat.rows() - 1; ++i) {
                 grad(i, j) =
-                    (mat(i + 1, j) - mat(i - 1, j)) / (x[i + 1] - x[i - 1]);
+                    detail::nonuniform_central_difference(x[i - 1],
+                                                          x[i],
+                                                          x[i + 1],
+                                                          mat(i - 1, j),
+                                                          mat(i, j),
+                                                          mat(i + 1, j));
             }
 
             // Backward at last row
@@ -567,6 +655,8 @@ inline matrix::matrixd central_gradient(const matrix::real_matrix_base &mat,
                 "Gradient: x size must be number of cols for axis=1");
         }
 
+        detail::validate_coordinates(x);
+
         matrix::matrixd grad(mat.rows(), mat.cols());
 
         for (size_t i = 0; i < mat.rows(); ++i) {
@@ -576,7 +666,12 @@ inline matrix::matrixd central_gradient(const matrix::real_matrix_base &mat,
             // Central at interior columns
             for (size_t j = 1; j < mat.cols() - 1; ++j) {
                 grad(i, j) =
-                    (mat(i, j + 1) - mat(i, j - 1)) / (x[j + 1] - x[j - 1]);
+                    detail::nonuniform_central_difference(x[j - 1],
+                                                          x[j],
+                                                          x[j + 1],
+                                                          mat(i, j - 1),
+                                                          mat(i, j),
+                                                          mat(i, j + 1));
             }
 
             // Backward at last column
@@ -649,6 +744,8 @@ inline void central_gradient2(std::span<const double> y,
             "Gradient: second derivative span must have same size as input");
     }
 
+    detail::validate_spacing(dx);
+
     double dx2 = dx * dx;
 
     // Forward difference at first point (less accurate)
@@ -700,6 +797,9 @@ inline matrix::matrixd laplacian(const matrix::real_matrix_base &mat,
         throw std::invalid_argument(
             "Gradient: need at least 3x3 matrix for Laplacian");
     }
+
+    detail::validate_spacing(dx);
+    detail::validate_spacing(dy);
 
     matrix::matrixd result(mat.rows(), mat.cols(), 0.0);
 

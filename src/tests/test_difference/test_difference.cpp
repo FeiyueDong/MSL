@@ -93,6 +93,40 @@ int test_difference() {
     EXPECT_NEAR(nu_central[1], 2.0 * nu_x[1], 1e-12);
     EXPECT_NEAR(nu_central[2], 2.0 * nu_x[2], 1e-12);
 
+    // Documented example: x = [0, 1, 3], f = x^2, interior derivative = 2
+    const std::vector<double> nu_small_x{0.0, 1.0, 3.0};
+    const std::vector<double> nu_small_y{0.0, 1.0, 9.0};
+    const auto nu_small_central =
+        difference::central_gradient(nu_small_x, nu_small_y);
+    EXPECT_NEAR(nu_small_central[1], 2.0, 1e-12);
+
+    // Non-uniform matrix central gradient matches the vector formulation
+    matrix::matrixd nu_rows(4, 3);
+    for (size_t i = 0; i < nu_rows.rows(); ++i) {
+        for (size_t j = 0; j < nu_rows.cols(); ++j) {
+            nu_rows(i, j) = nu_x[i] * nu_x[i]; // f = x^2, gradient along rows
+        }
+    }
+    const auto nu_rows_grad = difference::central_gradient(nu_rows, nu_x, 0);
+    for (size_t i = 1; i + 1 < nu_rows.rows(); ++i) {
+        for (size_t j = 0; j < nu_rows.cols(); ++j) {
+            EXPECT_NEAR(nu_rows_grad(i, j), 2.0 * nu_x[i], 1e-12);
+        }
+    }
+
+    matrix::matrixd nu_cols(3, 4);
+    for (size_t i = 0; i < nu_cols.rows(); ++i) {
+        for (size_t j = 0; j < nu_cols.cols(); ++j) {
+            nu_cols(i, j) = nu_x[j] * nu_x[j]; // f = x^2, along columns
+        }
+    }
+    const auto nu_cols_grad = difference::central_gradient(nu_cols, nu_x, 1);
+    for (size_t i = 0; i < nu_cols.rows(); ++i) {
+        for (size_t j = 1; j + 1 < nu_cols.cols(); ++j) {
+            EXPECT_NEAR(nu_cols_grad(i, j), 2.0 * nu_x[j], 1e-12);
+        }
+    }
+
     // Second derivative is exact for a quadratic at every point
     const std::vector<double> quad_y{0.0, 1.0, 4.0, 9.0, 16.0};
     const auto quad_second = difference::central_gradient2(quad_y, 1.0);
@@ -187,6 +221,66 @@ int test_difference() {
         threw_savgol = true;
     }
     EXPECT_TRUE(threw_savgol);
+
+    // Invalid inputs must throw instead of underflowing or dividing by zero
+    const auto throws_invalid = [](auto &&func) {
+        try {
+            func();
+        } catch (const std::invalid_argument &) {
+            return true;
+        } catch (...) {
+            return false;
+        }
+        return false;
+    };
+
+    EXPECT_TRUE(
+        throws_invalid([] { (void)difference::diff(std::vector<double>{}); }));
+    EXPECT_TRUE(throws_invalid(
+        [] { (void)difference::forward_gradient(std::vector<double>{}); }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::forward_gradient(std::vector<double>{1.0, 2.0}, 0.0);
+    }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::central_gradient(std::vector<double>{1.0, 2.0}, 0.0);
+    }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::central_gradient2(std::vector<double>{0.0, 1.0, 4.0},
+                                            0.0);
+    }));
+
+    // Non-uniform coordinates must be strictly increasing
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::forward_gradient(std::vector<double>{1.0, 2.0, 4.0},
+                                           std::vector<double>{0.0, 1.0, 1.0});
+    }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::forward_gradient(std::vector<double>{1.0, 2.0, 4.0},
+                                           std::vector<double>{0.0, 3.0, 1.0});
+    }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::central_gradient(std::vector<double>{0.0, 1.0, 1.0},
+                                           std::vector<double>{0.0, 1.0, 4.0});
+    }));
+    EXPECT_TRUE(throws_invalid([] {
+        (void)difference::central_gradient(std::vector<double>{0.0, 1.0, 0.5},
+                                           std::vector<double>{0.0, 1.0, 6.0});
+    }));
+
+    const matrix::matrixd validation_matrix(3, 3, 1.0);
+    EXPECT_TRUE(throws_invalid([&] {
+        (void)difference::forward_gradient(
+            validation_matrix, std::vector<double>{0.0, 1.0, 1.0}, 0);
+    }));
+    EXPECT_TRUE(throws_invalid([&] {
+        (void)difference::central_gradient(
+            validation_matrix, std::vector<double>{0.0, 1.0, 0.5}, 1);
+    }));
+    EXPECT_TRUE(throws_invalid([&] {
+        (void)difference::central_gradient(validation_matrix, 0.0, 0);
+    }));
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::laplacian(validation_matrix, 1.0, 0.0); }));
 
     auto compare_dir = msl::test::result_dir("difference");
     std::ofstream vec_file(compare_dir / "difference_vector.txt");
