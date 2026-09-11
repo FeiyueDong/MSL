@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 18.0.11109.219
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{ABF4CAFE-AAA7-4FCF-B0EE-58B438E6784F}"
+	ProjectSection(SolutionItems) = preProject
+		src\tests\test_utils.hpp = src\tests\test_utils.hpp
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_difference", "project\test\test_difference\test_difference.vcxproj", "{FB6AE64D-2628-434A-B324-B64533E06795}"
 EndProject

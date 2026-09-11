@@ -9,9 +9,10 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../test_utils.hpp"
 #include "matrix.hpp"
 #include "signal.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 

@@ -6,9 +6,10 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../test_utils.hpp"
 #include "difference.hpp"
 #include "matrix.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 

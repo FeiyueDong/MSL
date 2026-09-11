@@ -8,8 +8,9 @@
 #include <limits>
 #include <vector>
 
+#include "../test_utils.hpp"
 #include "matrix.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 

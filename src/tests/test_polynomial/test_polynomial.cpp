@@ -6,9 +6,10 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../test_utils.hpp"
 #include "polynomial.hpp"
 #include "polynomial/polynomial.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 

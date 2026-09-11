@@ -7,8 +7,9 @@
 #include <stdexcept>
 #include <vector>
 
+#include "../test_utils.hpp"
 #include "ode.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 

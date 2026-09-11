@@ -5,8 +5,9 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "../test_utils.hpp"
 #include "equation.hpp"
-#include "test_utils.hpp"
+
 
 using namespace msl;
 
