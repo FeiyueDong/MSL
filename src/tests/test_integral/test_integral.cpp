@@ -77,6 +77,7 @@ int test_integral() {
     auto cs = integral::cumsimpson(parabola, 1.0);
     EXPECT_EQ(cs.size(), parabola.size());
     EXPECT_NEAR(cs[0], 0.0, 1e-12);
+    EXPECT_NEAR(cs[1], 1.0 / 3.0, 1e-12);
     EXPECT_NEAR(cs[2], 8.0 / 3.0, 1e-12);
 
     std::vector<double> x_parabola{0.0, 0.5, 2.0};
@@ -84,7 +85,45 @@ int test_integral() {
     EXPECT_NEAR(integral::simpson(x_parabola, y_parabola), 8.0 / 3.0, 1e-12);
     auto cs_nonuniform = integral::cumsimpson(x_parabola, y_parabola);
     EXPECT_EQ(cs_nonuniform.size(), y_parabola.size());
+    EXPECT_NEAR(cs_nonuniform[1], 1.0 / 24.0, 1e-12);
     EXPECT_NEAR(cs_nonuniform[2], 8.0 / 3.0, 1e-12);
+
+    // Cumulative Simpson is exact at every point for a quadratic
+    std::vector<double> quadratic_y{0.0, 1.0, 4.0, 9.0, 16.0};
+    auto cumulative = integral::cumsimpson(quadratic_y, 1.0);
+    for (size_t i = 0; i < quadratic_y.size(); ++i) {
+        const double exact = static_cast<double>(i) * static_cast<double>(i)
+                             * static_cast<double>(i) / 3.0;
+        EXPECT_NEAR(cumulative[i], exact, 1e-12);
+    }
+
+    std::vector<double> quadratic_x{0.0, 0.5, 1.5, 3.0, 4.0};
+    std::vector<double> quadratic_y_nonuniform{0.0, 0.25, 2.25, 9.0, 16.0};
+    auto cumulative_nonuniform =
+        integral::cumsimpson(quadratic_x, quadratic_y_nonuniform);
+    for (size_t i = 0; i < quadratic_x.size(); ++i) {
+        const double exact =
+            quadratic_x[i] * quadratic_x[i] * quadratic_x[i] / 3.0;
+        EXPECT_NEAR(cumulative_nonuniform[i], exact, 1e-12);
+    }
+
+    // Uniform and non-uniform formulations agree on a uniform grid
+    std::vector<double> uniform_axis{0.0, 1.0, 2.0, 3.0, 4.0};
+    auto cumulative_axis = integral::cumsimpson(uniform_axis, quadratic_y);
+    for (size_t i = 0; i < cumulative.size(); ++i) {
+        EXPECT_NEAR(cumulative_axis[i], cumulative[i], 1e-12);
+    }
+
+    // Even number of points: the final interval falls back to trapezoidal
+    std::vector<double> even_y{0.0, 1.0, 4.0, 9.0, 16.0, 25.0};
+    auto even_cumulative = integral::cumsimpson(even_y, 1.0);
+    for (size_t i = 0; i + 1 < even_y.size(); ++i) {
+        const double exact = static_cast<double>(i) * static_cast<double>(i)
+                             * static_cast<double>(i) / 3.0;
+        EXPECT_NEAR(even_cumulative[i], exact, 1e-12);
+    }
+    EXPECT_NEAR(
+        even_cumulative[5], even_cumulative[4] + 0.5 * (16.0 + 25.0), 1e-12);
 
     EXPECT_NEAR(
         integral::trapz([](double x) { return x; }, 0.0, 1.0, 16), 0.5, 1e-12);
@@ -136,6 +175,15 @@ int test_integral() {
         threw = true;
     }
     EXPECT_TRUE(threw);
+
+    bool threw_cumsimpson = false;
+    try {
+        (void)integral::cumsimpson(std::vector<double>{0.0, 1.0, 1.0},
+                                   std::vector<double>{0.0, 1.0, 4.0});
+    } catch (const std::invalid_argument &) {
+        threw_cumsimpson = true;
+    }
+    EXPECT_TRUE(threw_cumsimpson);
 
     auto compare_dir =
         project_root() / "test_result" / "integral" / "matlab_compare";

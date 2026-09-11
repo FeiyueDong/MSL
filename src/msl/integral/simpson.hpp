@@ -46,6 +46,35 @@ inline double simpson_nonuniform_segment(double x0,
            * ((2.0 - h1 / h0) * y0 + (hsum * hsum / (h0 * h1)) * y1
               + (2.0 - h0 / h1) * y2);
 }
+
+/**
+ * @brief Integral of the quadratic through (x0,y0), (x1,y1), (x2,y2) over the
+ * first half interval [x0, x1].
+ *
+ * Used for cumulative Simpson integration at odd sample indices, so that the
+ * cumulative value at every point is obtained from the same local quadratic
+ * interpolant.
+ */
+inline double simpson_nonuniform_half_segment(double x0,
+                                              double x1,
+                                              double x2,
+                                              double y0,
+                                              double y1,
+                                              double y2) {
+    double h0 = x1 - x0;
+    double h1 = x2 - x1;
+    if (h0 <= 0.0 || h1 <= 0.0) {
+        throw std::invalid_argument(
+            "Simpson: x values must be strictly increasing");
+    }
+
+    const double slope01 = (y1 - y0) / h0;
+    const double slope12 = (y2 - y1) / h1;
+    const double second_divided_difference = (slope12 - slope01) / (x2 - x0);
+
+    return y0 * h0 + 0.5 * h0 * (y1 - y0)
+           - (h0 * h0 * h0 / 6.0) * second_divided_difference;
+}
 } // namespace detail
 
 // ============================================================================
@@ -181,9 +210,16 @@ inline double simpson(Func &&f, double a, double b, size_t intervals) {
  * @brief Cumulative Simpson's rule for vector (uniform spacing, with output
  * buffer)
  *
- * Computes cumulative integral: result[i] = ∫[0 to i] y dx using Simpson's
- * rule. For even indices, uses Simpson's rule; for odd indices, uses linear
- * interpolation.
+ * Computes the cumulative integral `result[i] = ∫[x0 to xi] y dx`. For even
+ * indices, uses Simpson's rule over the two preceding intervals. For odd
+ * indices, integrates the same three-point interpolating parabola over the
+ * single preceding interval:
+ *
+ *   result[i-1] = result[i-2] + dx * (5*y[i-2] + 8*y[i-1] - y[i]) / 12
+ *   result[i]   = result[i-2] + dx * (y[i-2] + 4*y[i-1] + y[i]) / 3
+ *
+ * Both values are therefore exact for quadratics. If the number of points is
+ * even, the last interval is integrated with the trapezoidal rule.
  *
  * Zero-copy operation: directly fills the provided result span without internal
  * allocation.
@@ -207,17 +243,12 @@ cumsimpson(std::span<const double> y, std::span<double> result, double dx) {
     // First point
     result[0] = 0.0;
 
-    // Use Simpson's rule for pairs of intervals
+    // Integrate each pair of intervals with the three-point parabola
     for (size_t i = 2; i < y.size(); i += 2) {
-        double simp = (y[i - 2] + 4.0 * y[i - 1] + y[i]) * dx / 3.0;
-        result[i] = result[i - 2] + simp;
-
-        // Linear interpolation for odd index
-        if (i > 2) {
-            result[i - 1] = 0.5 * (result[i - 2] + result[i]);
-        } else {
-            result[i - 1] = 0.5 * simp;
-        }
+        result[i - 1] = result[i - 2]
+                        + (5.0 * y[i - 2] + 8.0 * y[i - 1] - y[i]) * dx / 12.0;
+        result[i] =
+            result[i - 2] + (y[i - 2] + 4.0 * y[i - 1] + y[i]) * dx / 3.0;
     }
 
     // Handle last point if even number of points
@@ -231,7 +262,10 @@ cumsimpson(std::span<const double> y, std::span<double> result, double dx) {
  * @brief Cumulative Simpson's rule for non-uniformly spaced samples
  *
  * Even indices use three-point quadratic integration. Odd indices use the
- * trapezoidal rule for the preceding single interval.
+ * integral of the same three-point quadratic over the preceding single
+ * interval, so cumulative values are exact for quadratics at every point. If
+ * the number of points is even, the last interval is integrated with the
+ * trapezoidal rule.
  *
  * @param x Independent variable values, strictly increasing
  * @param y Function values at x points
@@ -253,12 +287,9 @@ inline void cumsimpson(std::span<const double> x,
 
     result[0] = 0.0;
     for (size_t i = 2; i < y.size(); i += 2) {
-        double dx0 = x[i - 1] - x[i - 2];
-        if (dx0 <= 0.0) {
-            throw std::invalid_argument(
-                "Simpson: x values must be strictly increasing");
-        }
-        result[i - 1] = result[i - 2] + 0.5 * (y[i - 2] + y[i - 1]) * dx0;
+        result[i - 1] = result[i - 2]
+                        + detail::simpson_nonuniform_half_segment(
+                            x[i - 2], x[i - 1], x[i], y[i - 2], y[i - 1], y[i]);
         result[i] = result[i - 2]
                     + detail::simpson_nonuniform_segment(
                         x[i - 2], x[i - 1], x[i], y[i - 2], y[i - 1], y[i]);
@@ -279,8 +310,10 @@ inline void cumsimpson(std::span<const double> x,
  * @brief Cumulative Simpson's rule for vector (uniform spacing)
  *
  * Computes cumulative integral: output[i] = ∫[0 to i] y dx using Simpson's
- * rule. For even indices, uses Simpson's rule; for odd indices, uses linear
- * interpolation.
+ * rule. Even indices use Simpson's rule over the two preceding intervals; odd
+ * indices integrate the same interpolating parabola over the single preceding
+ * interval. If the number of points is even, the last interval is integrated
+ * with the trapezoidal rule.
  *
  * @param y Function values at equally spaced points
  * @param dx Spacing between points

@@ -72,7 +72,10 @@ auto integrals = msl::integral::simpson(mat, dx);
 auto integrals = msl::integral::simpson(x, mat);
 ```
 
-Cumulative Simpson uses Simpson's rule for even-indexed points and linear interpolation for odd-indexed points.
+Cumulative Simpson integrates the three-point interpolating parabola over the
+two-interval span at even indices and over the preceding single interval at odd
+indices, so every cumulative value is exact for quadratics. If the number of
+points is even, the last interval falls back to the trapezoidal rule.
 
 ## Romberg Integration
 
