@@ -332,28 +332,21 @@ private:
         // Get analog lowpass prototype poles (order_ of them)
         auto lp_poles = get_analog_poles(); // returns poles of normalized LP
 
-        // Transform each lowpass pole p -> two bandpass poles
-        std::vector<std::complex<double>> bp_poles;
-        bp_poles.reserve(2 * order_);
-
-        for (const auto &p : lp_poles) {
-            // alpha = (bw/2) * p
-            std::complex<double> alpha = (bw / 2.0) * p;
-            // beta = sqrt(alpha^2 - w0^2)
-            std::complex<double> beta =
-                std::sqrt(alpha * alpha - std::complex<double>(w0 * w0, 0.0));
-            // two bandpass analog poles
-            std::complex<double> s1 = alpha + beta;
-            std::complex<double> s2 = alpha - beta;
-            bp_poles.push_back(s1);
-            bp_poles.push_back(s2);
+        // Transform each lowpass pole p into the two analog poles of the
+        // requested band filter. Bandpass and bandstop use different
+        // LP -> band transformations.
+        std::vector<std::complex<double>> analog_poles;
+        if (type_ == FilterType::bandpass) {
+            analog_poles = transform_lowpass_to_bandpass(lp_poles, w0, bw);
+        } else {
+            analog_poles = transform_lowpass_to_bandstop(lp_poles, w0, bw);
         }
 
         // Bilinear transform each analog s pole to z-domain: z = (2 + s) / (2 -
         // s)
         std::vector<std::complex<double>> digital_poles;
-        digital_poles.reserve(bp_poles.size());
-        for (const auto &s : bp_poles) {
+        digital_poles.reserve(analog_poles.size());
+        for (const auto &s : analog_poles) {
             std::complex<double> z = (2.0 + s) / (2.0 - s);
             digital_poles.push_back(z);
         }
@@ -389,24 +382,16 @@ private:
             normalize_gain(fc_center);
         } else // FilterType::bandstop
         {
-            // Bandstop: zeros at s=±jw0 map to complex conjugate pairs on unit
-            // circle For each analog zero at ±jw0, we get digital zeros at
-            // e^{±jω0} where ω0 corresponds to the center frequency
+            // Bandstop: the analog zeros at s = ±j*w0 map to digital zeros at
+            // z = e^{±j*omega0}, where omega0 is the inverse-warped center.
+            // For order N this gives N conjugate zero pairs and the digital
+            // numerator ∏ (1 - 2*cos(omega0)*z^{-1} + z^{-2})^N.
 
-            const double fc_center = 0.5 * (fc_low_ + fc_high_);
             const double omega0 =
-                std::numbers::pi * fc_center; // digital center freq
-
-            // Zeros come in conjugate pairs: e^{±jω0}
-            // For bandstop of order N, we have N pairs of zeros at center
-            // frequency Digital numerator: ∏(1 - 2cos(ω0)z^{-1} + z^{-2})^N
-
-            // Start with polynomial = 1
-            std::vector<double> poly(1, 1.0);
-
-            // Multiply by (1 - 2cos(ω0)z^{-1} + z^{-2}) N times
+                2.0 * std::atan(w0 / 2.0); // digital center frequency
             const double two_cos_omega0 = 2.0 * std::cos(omega0);
 
+            std::vector<double> poly(1, 1.0);
             for (int i = 0; i < order_; ++i) {
                 std::vector<double> next(poly.size() + 2, 0.0);
                 for (size_t k = 0; k < poly.size(); ++k) {
@@ -420,10 +405,72 @@ private:
 
             coeffs_.b = poly;
 
-            // Normalize gain at DC (stopband should attenuate center, passband
-            // at DC/Nyquist)
+            // Normalize the passband gain at DC. The symmetric analog
+            // prototype also gives unity gain at Nyquist.
             normalize_gain(0.0);
         }
+    }
+
+    /**
+     * @brief Map lowpass prototype poles to analog bandpass poles.
+     *
+     * Uses the LP -> BP transform `s_L = (s^2 + w0^2) / (bw * s)`, which for
+     * each prototype pole `p` yields the roots of `s^2 - bw*p*s + w0^2 = 0`:
+     *
+     *   s = (bw/2)*p ± sqrt(((bw/2)*p)^2 - w0^2)
+     *
+     * @param lp_poles Normalized lowpass prototype poles.
+     * @param w0 Analog center frequency.
+     * @param bw Analog bandwidth.
+     */
+    static std::vector<std::complex<double>> transform_lowpass_to_bandpass(
+        const std::vector<std::complex<double>> &lp_poles,
+        double w0,
+        double bw) {
+        std::vector<std::complex<double>> poles;
+        poles.reserve(2 * lp_poles.size());
+        const std::complex<double> w0_squared(w0 * w0, 0.0);
+
+        for (const auto &p : lp_poles) {
+            const std::complex<double> alpha = (bw / 2.0) * p;
+            const std::complex<double> beta =
+                std::sqrt(alpha * alpha - w0_squared);
+            poles.push_back(alpha + beta);
+            poles.push_back(alpha - beta);
+        }
+
+        return poles;
+    }
+
+    /**
+     * @brief Map lowpass prototype poles to analog bandstop poles.
+     *
+     * Uses the LP -> BS transform `s_L = (bw * s) / (s^2 + w0^2)`, which for
+     * each prototype pole `p` yields the roots of `p*s^2 - bw*s + p*w0^2 = 0`:
+     *
+     *   s = bw/(2*p) ± sqrt((bw/(2*p))^2 - w0^2)
+     *
+     * @param lp_poles Normalized lowpass prototype poles.
+     * @param w0 Analog center frequency.
+     * @param bw Analog bandwidth.
+     */
+    static std::vector<std::complex<double>> transform_lowpass_to_bandstop(
+        const std::vector<std::complex<double>> &lp_poles,
+        double w0,
+        double bw) {
+        std::vector<std::complex<double>> poles;
+        poles.reserve(2 * lp_poles.size());
+        const std::complex<double> w0_squared(w0 * w0, 0.0);
+
+        for (const auto &p : lp_poles) {
+            const std::complex<double> alpha = bw / (2.0 * p);
+            const std::complex<double> beta =
+                std::sqrt(alpha * alpha - w0_squared);
+            poles.push_back(alpha + beta);
+            poles.push_back(alpha - beta);
+        }
+
+        return poles;
     }
 
 

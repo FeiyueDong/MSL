@@ -274,6 +274,29 @@ int test_butterworth_bandpass() {
     return 0;
 }
 
+int test_butterworth_bandstop() {
+    struct Band {
+        double low;
+        double high;
+    };
+    const Band bands[] = {{0.05, 0.1}, {0.1, 0.3}, {0.004, 0.8}};
+    const double cutoff_gain = 1.0 / std::sqrt(2.0);
+
+    for (const auto &band : bands) {
+        const auto coeffs =
+            signal::butterworth_bandstop_design(2, band.low, band.high);
+        const double notch = band_center_frequency(band.low, band.high);
+
+        EXPECT_NEAR(magnitude_response(coeffs, notch), 0.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, 0.0), 1.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, 1.0), 1.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, band.low), cutoff_gain, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, band.high), cutoff_gain, 1e-9);
+    }
+
+    return 0;
+}
+
 int test_welch_and_covariance() {
     const std::vector<double> x{1.0, 2.0, 0.0, -1.0, 3.0, 2.0};
     const std::vector<double> y{0.0, 1.0, 2.0, 1.0, -1.0, 2.0};
@@ -376,8 +399,8 @@ int test_windows_and_filter() {
 
 int main() {
     int result = test_fft() + test_fft_matrix_roundtrip()
-                 + test_butterworth_bandpass() + test_welch_and_covariance()
-                 + test_windows_and_filter();
+                 + test_butterworth_bandpass() + test_butterworth_bandstop()
+                 + test_welch_and_covariance() + test_windows_and_filter();
 
     auto compare_dir =
         project_root() / "test_result" / "signal" / "matlab_compare";
