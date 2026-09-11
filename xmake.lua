@@ -30,32 +30,19 @@ elseif is_plat("macosx") then
     set_targetdir("$(projectdir)/build/macosx",{ bindir = "bin", libdir = "lib" })
 end
 
+if is_plat("linux", "macosx") then
+    add_requires("eigen", {system = true})
+end
+
 if is_plat("linux", "macosx", "mingw") then
     add_cxflags("-fPIC")
 end
 
 -- Header-only library target. Tests depend on "msl" and inherit its public
 -- include directories.
---
--- Eigen is the single external dependency. MSYS2/GCC, Linux and macOS system
--- installations are found through the compiler default include paths; an
--- alternative location can be supplied with the EIGEN_INCLUDE_DIR environment
--- variable.
 target("msl")
     set_kind("headeronly")
     add_includedirs("src/msl", {public = true})
     add_headerfiles("src/msl/**.hpp")
-
-    local eigen_include = os.getenv("EIGEN_INCLUDE_DIR")
-    if eigen_include and #eigen_include > 0 then
-        add_includedirs(eigen_include, {public = true})
-    end
-    if is_plat("windows") then
-        add_includedirs("vcpkg_installed/x64-windows/x64-windows/include",
-            {public = true})
-    elseif is_plat("linux", "macosx") then
-        add_includedirs("/usr/include/eigen3", "/usr/local/include/eigen3",
-            "/opt/homebrew/include/eigen3", {public = true})
-    end
 
 includes("src/tests")
