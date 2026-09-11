@@ -57,8 +57,8 @@ public:
      * @param n Polynomial degree
      * @return Fitted Polynomial
      */
-    [[nodiscard]] static Polynomial
-    from_fit(std::span<const double> y, std::size_t n) {
+    [[nodiscard]] static Polynomial from_fit(std::span<const double> y,
+                                             std::size_t n) {
         std::vector<double> x(y.size());
         std::iota(x.begin(), x.end(), 0.0);
         Polynomial poly;
@@ -74,10 +74,9 @@ public:
      * @param n Polynomial degree
      * @return Fitted Polynomial
      */
-    [[nodiscard]] static Polynomial
-    from_fit(std::span<const double> x,
-             std::span<const double> y,
-             std::size_t n = 0) {
+    [[nodiscard]] static Polynomial from_fit(std::span<const double> x,
+                                             std::span<const double> y,
+                                             std::size_t n = 0) {
         Polynomial poly;
         poly.fit(x, y, n);
         return poly;
@@ -238,7 +237,7 @@ private:
 
         auto Qt_y =
             matrix::transpose(Q) * matrix::real_matrix_owned(y.size(), 1, y);
-        Qt_y = Qt_y.submatrix(0, n + 1, 0, 1);
+        Qt_y = Qt_y.submatrix_copy(0, n + 1, 0, 1);
         matrix::real_matrix_owned coeffs_mat =
             matrix::real_matrix_owned(n + 1, 1);
         matrix::matrixd R_upper(n + 1, n + 1, 0.0);

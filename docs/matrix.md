@@ -117,10 +117,13 @@ A *= 2.0;             // in-place scalar multiply
 ```cpp
 A.resize(5, 5, 0.0);       // resize, optional fill value
 A.clear();                  // clear to 0x0
-auto row = A.get_row(i);    // extract row (as new matrixd)
-auto col = A.get_column(j); // extract column (as new matrixd)
-auto sub = A.submatrix(r0, r1, c0, c1); // submatrix view
+auto row = A.row_copy(i);        // owning copy of a row
+auto col = A.column_copy(j);     // owning copy of a column
+auto sub = A.submatrix_copy(r0, r1, c0, c1); // owning copy of a submatrix
 ```
+
+Copy accessors are explicitly named `*_copy`; for zero-copy access use
+`column(j)`, which returns a `std::span` into the column-major storage.
 
 ## real_matrix_view (matrixd_view)
 

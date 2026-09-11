@@ -349,27 +349,27 @@ int test_base_op() {
     while (0)
         ;
 
-    // 5) row/column/submatrix/get_row/get_column
-    TEST_CASE("row/col/submatrix") {
+    // 5) row/column/submatrix copy accessors
+    TEST_CASE("row/col/submatrix copies") {
         matrix::matrixd M(3, 4);
         // fill with M(i,j) = i + 10*j  (col-major aware)
         for (size_t j = 0; j < M.cols(); ++j)
             for (size_t i = 0; i < M.rows(); ++i)
                 M(i, j) = double(i + 10 * j);
 
-        auto row1 = M.get_row(1);
+        auto row1 = M.row_copy(1);
         EXPECT_EQ(row1.rows(), 1);
         EXPECT_EQ(row1.cols(), M.cols());
         for (size_t j = 0; j < M.cols(); ++j)
             EXPECT_EQ(row1(0, j), M(1, j));
 
-        auto col2 = M.get_column(2);
+        auto col2 = M.column_copy(2);
         EXPECT_EQ(col2.rows(), M.rows());
         EXPECT_EQ(col2.cols(), 1);
         for (size_t i = 0; i < M.rows(); ++i)
             EXPECT_EQ(col2(i, 0), M(i, 2));
 
-        auto sub = M.submatrix(1, 3, 1, 4); // rows 1..2, cols 1..3
+        auto sub = M.submatrix_copy(1, 3, 1, 4); // rows 1..2, cols 1..3
         EXPECT_EQ(sub.rows(), 2);
         EXPECT_EQ(sub.cols(), 3);
         for (size_t j = 0; j < sub.cols(); ++j)

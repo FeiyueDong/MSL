@@ -172,8 +172,8 @@ public:
         std::fill(storage_.begin(), storage_.end(), std::complex<double>{});
     }
 
-    // --- Row/Column extraction (returns new matrix) ---
-    [[nodiscard]] complex_matrix_owned get_row(size_t i) const {
+    // --- Row/Column extraction (returns owning copies) ---
+    [[nodiscard]] complex_matrix_owned row_copy(size_t i) const {
         assert(i < this->rows_);
         complex_matrix_owned row(1, this->cols_);
         for (size_t j = 0; j < this->cols_; ++j) {
@@ -181,7 +181,7 @@ public:
         }
         return row;
     }
-    [[nodiscard]] complex_matrix_owned get_column(size_t j) const {
+    [[nodiscard]] complex_matrix_owned column_copy(size_t j) const {
         assert(j < this->cols_);
         complex_matrix_owned col(this->rows_, 1);
         const auto &col_span = this->column(j);
@@ -189,11 +189,11 @@ public:
         return col;
     }
 
-    // --- Submatrix extraction ---
-    [[nodiscard]] complex_matrix_owned submatrix(size_t row_start,
-                                                 size_t row_end,
-                                                 size_t col_start,
-                                                 size_t col_end) const {
+    // --- Submatrix extraction (returns an owning copy) ---
+    [[nodiscard]] complex_matrix_owned submatrix_copy(size_t row_start,
+                                                      size_t row_end,
+                                                      size_t col_start,
+                                                      size_t col_end) const {
         assert(row_start < row_end && row_end <= this->rows_);
         assert(col_start < col_end && col_end <= this->cols_);
 
