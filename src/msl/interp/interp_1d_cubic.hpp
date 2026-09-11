@@ -4,7 +4,7 @@
 **  Copyright 2025 - 2025, Dong Feiyue, All Rights Reserved.
 **
 ** Project: MSL
-** File: interp_1d_spline.hpp
+** File: interp_1d_cubic.hpp
 ** -----
 ** File Created: Wednesday, 15th October 2025 14:11:26
 ** Author: Dong Feiyue (FeiyueDong@outlook.com)
@@ -20,9 +20,11 @@
 
 namespace msl::interp {
 /**
- * @brief Natural cubic spline interpolation.
+ * @brief Cubic spline interpolation.
  *
- * Boundary condition: second derivative is zero at both ends.
+ * The default boundary condition is Not-a-knot, which matches MATLAB
+ * `interp1(..., 'spline')`. Natural and clamped boundary conditions are
+ * available through `BoundaryCondition`.
  */
 class CubicSpline : public InterpolatorBase {
 public:
@@ -305,7 +307,7 @@ private:
 };
 
 /**
- * @brief Natural cubic spline interpolation (zero-copy output).
+ * @brief Not-a-knot cubic spline interpolation (zero-copy output).
  *
  * @param x Independent variable samples
  * @param y Dependent variable samples
@@ -326,7 +328,7 @@ inline void interp1_cubic(std::span<const double> x,
 }
 
 /**
- * @brief Natural cubic spline interpolation.
+ * @brief Not-a-knot cubic spline interpolation.
  *
  * @param x Independent variable samples
  * @param y Dependent variable samples

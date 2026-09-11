@@ -77,6 +77,8 @@ public:
      * @return Interpolated (or extrapolated) value at x
      */
     double operator()(double x) const {
+        ensure_data();
+
         // Check for exact match
         auto idx = std::find(x_.begin(), x_.end(), x);
         if (idx != x_.end()) {
@@ -206,6 +208,7 @@ public:
      * @return True if x is within [x_min, x_max], false otherwise
      */
     [[nodiscard]] bool in_range(double x) const {
+        ensure_data();
         return x >= x_.front() && x <= x_.back();
     }
 
@@ -215,6 +218,7 @@ public:
      * @return Pair of (x_min, x_max)
      */
     [[nodiscard]] std::pair<double, double> range() const {
+        ensure_data();
         return {x_.front(), x_.back()};
     }
 
@@ -222,6 +226,17 @@ protected:
     std::vector<double> x_;
     std::vector<double> y_;
     ExtrapolationMode extrap_mode_ = ExtrapolationMode::Polynomial;
+
+    /**
+     * @brief Ensure that data has been assigned before use.
+     *
+     * @throws std::runtime_error if no data has been set
+     */
+    void ensure_data() const {
+        if (x_.empty() || y_.empty()) {
+            throw std::runtime_error("Interp: no data has been set");
+        }
+    }
 
     // Validate input data (size, sorting, etc.)
     void validate_input() const {

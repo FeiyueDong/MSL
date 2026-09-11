@@ -12,12 +12,12 @@ The interpolation module provides 1D interpolation with six methods: nearest nei
 
 ```
 InterpolatorBase (abstract)
-  |-- Linear           : piecewise linear interpolation
-  |-- Spline           : cubic C2 spline (natural boundary conditions)
-  |-- Akima            : Akima monotonic interpolation
-  |-- PCHIP            : shape-preserving piecewise cubic Hermite
-  |-- Nearest          : nearest-neighbor (stepwise constant)
-  |-- PolynomialInterp : polynomial interpolation
+  |-- Linear       : piecewise linear interpolation
+  |-- CubicSpline  : cubic C2 spline (Not-a-knot boundary by default)
+  |-- AkimaSpline  : modified Akima / MAKIMA by default
+  |-- PchipSpline  : shape-preserving piecewise cubic Hermite
+  |-- Near         : nearest-neighbor (stepwise constant)
+  |-- Polynomial   : polynomial interpolation
 ```
 
 ## Base Class (InterpolatorBase)
@@ -49,6 +49,10 @@ bool in = interp.in_range(x);
 auto [xmin, xmax] = interp.range();
 ```
 
+Evaluating an interpolator before `set_data()` (or `from_data()`) has been
+called throws `std::runtime_error`; `in_range()` and `range()` do the same
+instead of dereferencing empty storage.
+
 ## Extrapolation Modes
 
 | Mode | Behavior |
@@ -74,20 +78,26 @@ double val = interp(1.5);  // ≈ 2.5
 
 ### Spline
 
-Cubic C2-continuous spline with natural boundary conditions (second derivative = 0 at endpoints). Tridiagonal system solved in O(n).
+Cubic C2-continuous spline. The default boundary condition is Not-a-knot,
+matching MATLAB `interp1(..., 'spline')`; Natural and Clamped boundaries are
+available through `CubicSpline::BoundaryCondition`. The tridiagonal system is
+solved in O(n).
 
 ```cpp
-msl::interp::Spline interp;
+msl::interp::CubicSpline interp;
 interp.set_data(x, y);
 double val = interp(3.14);
 ```
 
 ### Akima
 
-Akima interpolation — a piecewise cubic Hermite method that remains monotonic between data points. Less oscillation than standard splines for irregular data.
+Akima interpolation — a piecewise cubic Hermite method with less oscillation
+than standard splines for irregular data. The default uses modified Akima
+weights, matching MATLAB `makima`; pass `modified_akima = false` to
+`AkimaSpline::from_data` for the original Akima scheme.
 
 ```cpp
-msl::interp::Akima interp;
+msl::interp::AkimaSpline interp;
 interp.set_data(x, y);
 ```
 
@@ -96,7 +106,7 @@ interp.set_data(x, y);
 Piecewise Cubic Hermite Interpolating Polynomial — shape-preserving. Preserves monotonicity and local shape of the data.
 
 ```cpp
-msl::interp::PCHIP interp;
+msl::interp::PchipSpline interp;
 interp.set_data(x, y);
 ```
 
@@ -105,7 +115,7 @@ interp.set_data(x, y);
 Nearest-neighbor (stepwise constant) interpolation. Returns the value of the closest data point.
 
 ```cpp
-msl::interp::Nearest interp;
+msl::interp::Near interp;
 interp.set_data(x, y);
 ```
 
@@ -114,7 +124,7 @@ interp.set_data(x, y);
 Interpolates all data points with a single polynomial. Uses Neville's algorithm for evaluation.
 
 ```cpp
-msl::interp::PolynomialInterp interp;
+msl::interp::Polynomial interp;
 interp.set_data(x, y);  // n points → degree n-1 polynomial
 ```
 

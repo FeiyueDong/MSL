@@ -114,9 +114,94 @@ int test_interp() {
         nearest_file << near_xq[i] << " " << nearest[i] << "\n";
     }
 
+    return 0;
+}
+
+int test_interp_state() {
+    // Default-constructed interpolators reject evaluation before set_data
+    interp::CubicSpline cubic;
+    EXPECT_EQ(cubic.size(), 0);
+    bool threw_eval = false;
+    try {
+        (void)cubic(0.5);
+    } catch (const std::runtime_error &) {
+        threw_eval = true;
+    }
+    EXPECT_TRUE(threw_eval);
+
+    bool threw_range = false;
+    try {
+        (void)cubic.range();
+    } catch (const std::runtime_error &) {
+        threw_range = true;
+    }
+    EXPECT_TRUE(threw_range);
+
+    bool threw_in_range = false;
+    try {
+        (void)cubic.in_range(0.5);
+    } catch (const std::runtime_error &) {
+        threw_in_range = true;
+    }
+    EXPECT_TRUE(threw_in_range);
+
+    interp::AkimaSpline akima;
+    bool threw_akima = false;
+    try {
+        (void)akima(0.5);
+    } catch (const std::runtime_error &) {
+        threw_akima = true;
+    }
+    EXPECT_TRUE(threw_akima);
+
+    // Invalid input data is rejected
+    const auto throws_invalid = [](auto &&func) {
+        try {
+            func();
+        } catch (const std::invalid_argument &) {
+            return true;
+        } catch (...) {
+            return false;
+        }
+        return false;
+    };
+
+    interp::CubicSpline spline;
+    EXPECT_TRUE(throws_invalid([&] {
+        spline.set_data(std::vector<double>{0.0, 1.0, 2.0},
+                        std::vector<double>{1.0, 2.0});
+    }));
+    EXPECT_TRUE(throws_invalid([&] {
+        spline.set_data(std::vector<double>{0.0}, std::vector<double>{1.0});
+    }));
+    EXPECT_TRUE(throws_invalid([&] {
+        spline.set_data(std::vector<double>{0.0, 1.0, 1.0},
+                        std::vector<double>{1.0, 2.0, 3.0});
+    }));
+
+    // Not-a-knot is the default; Natural differs on nonlinear data
+    const std::vector<double> x{0.0, 1.0, 2.0, 3.0, 4.0};
+    const std::vector<double> y{0.0, 1.0, 0.0, 1.0, 0.0};
+    auto default_spline = interp::CubicSpline::from_data(x, y);
+    auto natural_spline = interp::CubicSpline::from_data(
+        x, y, interp::CubicSpline::BoundaryCondition::Natural);
+    const double default_value = default_spline(0.5);
+    const double natural_value = natural_spline(0.5);
+    EXPECT_TRUE(std::abs(default_value - natural_value) > 1e-6);
+
+    // Both boundary conditions interpolate the data points exactly
+    for (size_t i = 0; i < x.size(); ++i) {
+        EXPECT_NEAR(default_spline(x[i]), y[i], 1e-12);
+        EXPECT_NEAR(natural_spline(x[i]), y[i], 1e-12);
+    }
+
+    return 0;
+}
+
+int main() {
+    test_interp();
+    test_interp_state();
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures
               << "\n";
     return g_failures == 0 ? 0 : 1;
 }
-
-int main() { return test_interp(); }

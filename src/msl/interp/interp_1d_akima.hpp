@@ -19,7 +19,12 @@
 #include "interp_1d_base.hpp"
 
 namespace msl::interp {
-// Akima Spline (smoother than cubic, no overshoot)
+/**
+ * @brief Akima spline interpolation (smoother than cubic, limited overshoot).
+ *
+ * Uses modified Akima weights by default, matching MATLAB `makima`.
+ * Set `modified_akima = false` for the original Akima scheme.
+ */
 class AkimaSpline : public InterpolatorBase {
 public:
     AkimaSpline() = default;
@@ -32,10 +37,9 @@ public:
      * @param modified_akima Use modified Akima weights (MATLAB makima)
      * @return AkimaSpline interpolator
      */
-    [[nodiscard]] static AkimaSpline
-    from_data(std::span<const double> x,
-              std::span<const double> y,
-              bool modified_akima = true) {
+    [[nodiscard]] static AkimaSpline from_data(std::span<const double> x,
+                                               std::span<const double> y,
+                                               bool modified_akima = true) {
         AkimaSpline spline;
         spline.modified_akima_ = modified_akima;
         spline.set_data(x, y);
