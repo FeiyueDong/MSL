@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -62,6 +63,35 @@ std::filesystem::path project_root() {
         path = parent;
     }
     return std::filesystem::current_path();
+}
+
+static std::complex<double>
+frequency_response(const signal::FilterCoefficients &coeffs, double f) {
+    const std::complex<double> z_inv =
+        std::exp(std::complex<double>(0.0, -std::numbers::pi * f));
+    const auto evaluate = [&](const std::vector<double> &c) {
+        std::complex<double> value = 0.0;
+        std::complex<double> power = 1.0;
+        for (const double coefficient : c) {
+            value += coefficient * power;
+            power *= z_inv;
+        }
+        return value;
+    };
+    return evaluate(coeffs.b) / evaluate(coeffs.a);
+}
+
+static double magnitude_response(const signal::FilterCoefficients &coeffs,
+                                 double f) {
+    return std::abs(frequency_response(coeffs, f));
+}
+
+// Digital center corresponding to the analog geometric mean of the pre-warped
+// cutoffs.
+static double band_center_frequency(double low, double high) {
+    const double w1 = 2.0 * std::tan(std::numbers::pi * low / 2.0);
+    const double w2 = 2.0 * std::tan(std::numbers::pi * high / 2.0);
+    return 2.0 / std::numbers::pi * std::atan(std::sqrt(w1 * w2) / 2.0);
 }
 
 int test_fft() {
@@ -221,6 +251,29 @@ int test_fft_matrix_roundtrip() {
     return 0;
 }
 
+int test_butterworth_bandpass() {
+    struct Band {
+        double low;
+        double high;
+    };
+    const Band bands[] = {{0.05, 0.1}, {0.1, 0.3}, {0.004, 0.8}};
+    const double cutoff_gain = 1.0 / std::sqrt(2.0);
+
+    for (const auto &band : bands) {
+        const auto coeffs =
+            signal::butterworth_bandpass_design(2, band.low, band.high);
+        const double center = band_center_frequency(band.low, band.high);
+
+        EXPECT_NEAR(magnitude_response(coeffs, center), 1.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, band.low), cutoff_gain, 1e-9);
+        EXPECT_NEAR(magnitude_response(coeffs, band.high), cutoff_gain, 1e-9);
+        EXPECT_TRUE(magnitude_response(coeffs, 0.0) < 1e-12);
+        EXPECT_TRUE(magnitude_response(coeffs, 1.0) < 1e-12);
+    }
+
+    return 0;
+}
+
 int test_welch_and_covariance() {
     const std::vector<double> x{1.0, 2.0, 0.0, -1.0, 3.0, 2.0};
     const std::vector<double> y{0.0, 1.0, 2.0, 1.0, -1.0, 2.0};
@@ -323,7 +376,8 @@ int test_windows_and_filter() {
 
 int main() {
     int result = test_fft() + test_fft_matrix_roundtrip()
-                 + test_welch_and_covariance() + test_windows_and_filter();
+                 + test_butterworth_bandpass() + test_welch_and_covariance()
+                 + test_windows_and_filter();
 
     auto compare_dir =
         project_root() / "test_result" / "signal" / "matlab_compare";

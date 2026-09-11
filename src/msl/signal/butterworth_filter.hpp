@@ -383,8 +383,9 @@ private:
                 coeffs_.b[2 * m] = c;
             }
 
-            // Normalize gain at center frequency
-            const double fc_center = 0.5 * (fc_low_ + fc_high_);
+            // Normalize gain at the analog center frequency mapped back to
+            // the digital domain through the inverse bilinear transform
+            const double fc_center = analog_to_normalized_frequency(w0);
             normalize_gain(fc_center);
         } else // FilterType::bandstop
         {
@@ -529,6 +530,19 @@ private:
     }
 
     /**
+     * @brief Map an analog frequency to a normalized digital frequency.
+     *
+     * Inverse of the pre-warped bilinear transform (T = 1):
+     * f = (2 / pi) * atan(Omega / 2).
+     *
+     * @param omega Analog frequency (rad/s)
+     * @return Normalized frequency in [0, 1], where 1 corresponds to Nyquist
+     */
+    static double analog_to_normalized_frequency(double omega) {
+        return 2.0 / std::numbers::pi * std::atan(omega / 2.0);
+    }
+
+    /**
      * @brief Normalize filter gain at specified frequency
      *
      * @param f Normalized frequency (0 to 1, where 1 corresponds to Nyquist)
@@ -601,8 +615,7 @@ inline FilterCoefficients butterworth_highpass_design(int order, double fc) {
  */
 inline FilterCoefficients
 butterworth_bandpass_design(int order, double fc_low, double fc_high) {
-    return ButterworthFilter::bandpass(order, fc_low, fc_high)
-        .coefficients();
+    return ButterworthFilter::bandpass(order, fc_low, fc_high).coefficients();
 }
 
 /**
@@ -615,8 +628,7 @@ butterworth_bandpass_design(int order, double fc_low, double fc_high) {
  */
 inline FilterCoefficients
 butterworth_bandstop_design(int order, double fc_low, double fc_high) {
-    return ButterworthFilter::bandstop(order, fc_low, fc_high)
-        .coefficients();
+    return ButterworthFilter::bandstop(order, fc_low, fc_high).coefficients();
 }
 
 // ============================================================================
