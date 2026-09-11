@@ -93,9 +93,13 @@ msl::polynomial::polyval(coeffs, x_values, result);
 ### Least-Squares Fitting
 
 1. Build Vandermonde matrix `A` where `A[i][j] = x[i]^j` (size m × (n+1))
-2. Compute QR decomposition of A
-3. Solve `R * c = Q^T * y` via back-substitution
+2. Compute economy QR decomposition of A
+3. Solve `R * c = Q^T * y` via back-substitution (no explicit inverse)
 4. Returns coefficients in ascending power order
+
+The fit rejects rank-deficient systems (for example duplicate sample
+locations) with `std::runtime_error`, and throws `std::invalid_argument` when
+fewer than `n + 1` samples are provided.
 
 ### Evaluation
 

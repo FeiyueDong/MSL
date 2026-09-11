@@ -17,7 +17,9 @@
 #define MSL_POLYNOMIAL_HPP
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <numeric>
 #include <span>
 #include <stdexcept>
@@ -200,6 +202,14 @@ private:
 
     /**
      * @brief Compute coefficients by least-squares fitting.
+     *
+     * Builds the Vandermonde system and solves it with an economy QR
+     * factorization followed by triangular back-substitution.
+     *
+     * @throws std::invalid_argument if `x` and `y` differ in size or fewer
+     * than `n + 1` samples are provided
+     * @throws std::runtime_error if the system is rank deficient (for example
+     * duplicate sample locations)
      */
     void calc_coefficients(std::span<const double> x,
                            std::span<const double> y,
@@ -221,7 +231,8 @@ private:
             return;
         }
 
-        // least squares fitting
+        // Least-squares fit via economy QR: solve R * c = Q^T * y by
+        // back-substitution (no explicit inverse).
         matrix::matrixd A(x.size(), n + 1);
         for (std::size_t i = 0; i < x.size(); ++i) {
             double x_pow = 1.0;
@@ -231,26 +242,38 @@ private:
             }
         }
 
-        auto qr_result = matrix::qr(A);
-        auto &Q = qr_result[0];
-        auto &R = qr_result[1];
+        const auto qr_result = matrix::qr(A); // Q: m x k, R: k x k
+        const auto &Q = qr_result[0];
+        const auto &R = qr_result[1];
+        const std::size_t k = n + 1;
 
-        auto Qt_y =
-            matrix::transpose(Q) * matrix::real_matrix_owned(y.size(), 1, y);
-        Qt_y = Qt_y.submatrix_copy(0, n + 1, 0, 1);
-        matrix::real_matrix_owned coeffs_mat =
-            matrix::real_matrix_owned(n + 1, 1);
-        matrix::matrixd R_upper(n + 1, n + 1, 0.0);
-        for (std::size_t i = 0; i <= n; ++i) {
-            for (std::size_t j = i; j <= n; ++j) {
-                R_upper(i, j) = R(i, j);
+        const auto y_column = matrix::matrixd(y.size(), 1, y);
+        const auto Qt_y = matrix::transpose(Q) * y_column;
+
+        // Rank check on the diagonal of R (column order is preserved)
+        double max_pivot = 0.0;
+        for (std::size_t i = 0; i < k; ++i) {
+            max_pivot = std::max(max_pivot, std::abs(R(i, i)));
+        }
+        const double tolerance = std::numeric_limits<double>::epsilon()
+                                 * static_cast<double>(std::max(x.size(), k))
+                                 * max_pivot;
+
+        std::vector<double> coefficients(k, 0.0);
+        for (std::size_t i = k; i-- > 0;) {
+            if (std::abs(R(i, i)) <= tolerance) {
+                throw std::runtime_error(
+                    "Polynomial: rank-deficient fit (duplicate or dependent "
+                    "sample locations)");
             }
+            double sum = Qt_y(i, 0);
+            for (std::size_t j = i + 1; j < k; ++j) {
+                sum -= R(i, j) * coefficients[j];
+            }
+            coefficients[i] = sum / R(i, i);
         }
 
-        auto c = matrix::inverse(R_upper) * Qt_y;
-
-        coeffs_.resize(n + 1);
-        std::copy(c.data(), c.data() + c.size(), coeffs_.begin());
+        coeffs_ = std::move(coefficients);
     }
 };
 

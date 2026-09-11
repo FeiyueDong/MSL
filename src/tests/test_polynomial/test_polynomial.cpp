@@ -100,6 +100,43 @@ int test_polynomial() {
     }
     EXPECT_TRUE(threw);
 
+    // Noisy least-squares fit stays close to the underlying quadratic
+    std::vector<double> noisy_x(20);
+    std::vector<double> noisy_y(20);
+    for (size_t i = 0; i < noisy_x.size(); ++i) {
+        noisy_x[i] = -2.0 + 0.2 * static_cast<double>(i);
+        const double xi = noisy_x[i];
+        noisy_y[i] =
+            1.0 - 2.0 * xi + 0.5 * xi * xi + 0.01 * std::sin(10.0 * xi);
+    }
+    const auto noisy_coeffs = polynomial::polyfit(noisy_x, noisy_y, 2);
+    EXPECT_EQ(noisy_coeffs.size(), 3);
+    EXPECT_NEAR(noisy_coeffs[0], 1.0, 0.02);
+    EXPECT_NEAR(noisy_coeffs[1], -2.0, 0.02);
+    EXPECT_NEAR(noisy_coeffs[2], 0.5, 0.02);
+
+    // Degree too large for the sample count is rejected
+    bool threw_degree = false;
+    try {
+        (void)polynomial::polyfit(std::vector<double>{0.0, 1.0, 2.0},
+                                  std::vector<double>{1.0, 2.0, 3.0},
+                                  3);
+    } catch (const std::invalid_argument &) {
+        threw_degree = true;
+    }
+    EXPECT_TRUE(threw_degree);
+
+    // Duplicate sample locations make the Vandermonde system rank deficient
+    bool threw_rank = false;
+    try {
+        (void)polynomial::polyfit(std::vector<double>{0.0, 0.0, 0.0},
+                                  std::vector<double>{1.0, 2.0, 3.0},
+                                  2);
+    } catch (const std::runtime_error &) {
+        threw_rank = true;
+    }
+    EXPECT_TRUE(threw_rank);
+
     auto compare_dir =
         project_root() / "test_result" / "polynomial" / "matlab_compare";
     std::filesystem::create_directories(compare_dir);
