@@ -176,10 +176,14 @@ All in `msl/matrix/martrix_decompose.hpp` (note the typo in the filename). All d
 ### QR Decomposition
 
 ```cpp
-auto [Q, R] = msl::matrix::qr(A);           // thin QR (default)
+auto [Q, R] = msl::matrix::qr(A);           // thin/economy QR (default)
 auto [Q, R] = msl::matrix::qr(A, true);      // full QR
 ```
 Returns `std::array<matrixd, 2>` — can use structured bindings.
+
+For economy QR, with `k = min(rows, cols)`, `Q` is `m×k` and `R` is `k×n`,
+satisfying `A ≈ Q*R` and `Q^T*Q ≈ I_k`. Full QR returns `Q` as `m×m` and `R`
+as `m×n`.
 
 ### LU Decomposition
 

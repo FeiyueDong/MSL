@@ -607,6 +607,58 @@ int test_decompositions() {
     while (0)
         ;
 
+    TEST_CASE("QR decomposition supports tall, square and wide matrices") {
+        const auto check_economy = [](const matrix::matrixd &A, double tol) {
+            const size_t m = A.rows();
+            const size_t n = A.cols();
+            const size_t k = std::min(m, n);
+            const auto result = matrix::qr(A);
+            const auto &Q = result[0];
+            const auto &R = result[1];
+
+            EXPECT_EQ(Q.rows(), m);
+            EXPECT_EQ(Q.cols(), k);
+            EXPECT_EQ(R.rows(), k);
+            EXPECT_EQ(R.cols(), n);
+            EXPECT_TRUE(matrix_near(Q * R, A, tol));
+            EXPECT_TRUE(columns_are_orthonormal(Q, tol));
+            EXPECT_TRUE(upper_triangular(R, tol));
+        };
+
+        const auto check_full = [](const matrix::matrixd &A, double tol) {
+            const size_t m = A.rows();
+            const size_t n = A.cols();
+            const auto result = matrix::qr(A, true);
+
+            EXPECT_EQ(result[0].rows(), m);
+            EXPECT_EQ(result[0].cols(), m);
+            EXPECT_EQ(result[1].rows(), m);
+            EXPECT_EQ(result[1].cols(), n);
+            EXPECT_TRUE(matrix_near(result[0] * result[1], A, tol));
+            EXPECT_TRUE(columns_are_orthonormal(result[0], tol));
+            EXPECT_TRUE(upper_triangular(result[1], tol));
+        };
+
+        const matrix::matrixd tall(
+            4, 2, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+        const matrix::matrixd square(
+            3, 3, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0});
+        const matrix::matrixd wide(
+            2, 4, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+        const matrix::matrixd rank_deficient(
+            2, 3, {1.0, 2.0, 3.0, 2.0, 4.0, 6.0});
+
+        check_economy(tall, 1e-12);
+        check_economy(square, 1e-12);
+        check_economy(wide, 1e-12);
+        check_economy(rank_deficient, 1e-12);
+
+        check_full(tall, 1e-12);
+        check_full(wide, 1e-12);
+    }
+    while (0)
+        ;
+
     TEST_CASE("Real nonsymmetric eigenvalues retain conjugate pairs") {
         constexpr double a = 0.8;
         constexpr double b = 0.3;

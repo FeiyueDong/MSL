@@ -526,11 +526,14 @@ inline complex_lu_result lu(const complex_matrix_base &A) {
 // 4. Matrix QR Decomposition Functions
 // ============================================================================
 // Decompose real matrix A into Q and R such that A = Q * R
-// Q is orthogonal matrix, R is upper triangular matrix
+// Thin (economy) QR: with k = min(m, n), Q is m x k and R is k x n.
+// Full QR: Q is m x m and R is m x n.
+// Q has orthonormal columns, R is upper triangular
 inline std::array<real_matrix_owned, 2> qr(const real_matrix_base &A,
                                            bool full = false) {
     size_t m = A.rows();
     size_t n = A.cols();
+    const size_t k = std::min(m, n);
     std::array<real_matrix_owned, 2> result;
     auto &Q = result[0];
     auto &R = result[1];
@@ -541,15 +544,16 @@ inline std::array<real_matrix_owned, 2> qr(const real_matrix_base &A,
     Eigen::MatrixXd eig_R = qr.matrixQR().triangularView<Eigen::Upper>();
 
     if (full) {
-        // full QR: Q is m x m
+        // full QR: Q is m x m, R is m x n
         Eigen::MatrixXd I = Eigen::MatrixXd::Identity(m, m);
         Q = eigen_interface::from_eigen(qr.householderQ() * I);
         R = eigen_interface::from_eigen(eig_R);
     } else {
-        // thin QR: Q is m x n
-        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(m, n);
+        // thin QR: Q is m x k, R is k x n
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(m, k);
         Q = eigen_interface::from_eigen(qr.householderQ() * I);
-        R = eigen_interface::from_eigen(eig_R.topRows(n));
+        R = eigen_interface::from_eigen(
+            eig_R.topRows(static_cast<Eigen::Index>(k)));
     }
 
     return result;
