@@ -20,6 +20,7 @@
 #include "filter_design.hpp"
 #include "filtfilt.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <numbers>
@@ -523,10 +524,20 @@ private:
             poly.swap(next);
         }
 
-        // Convert to real (imag parts should be ~0)
+        // Convert to real. Conjugate pole pairs must produce real
+        // coefficients; a non-negligible imaginary part indicates unpaired
+        // poles or severe numerical error.
         std::vector<double> result(poly.size());
-        for (size_t i = 0; i < poly.size(); ++i)
+        for (size_t i = 0; i < poly.size(); ++i) {
+            const double imaginary_tolerance =
+                1e-9 * std::max(1.0, std::abs(poly[i].real()));
+            if (std::abs(poly[i].imag()) > imaginary_tolerance) {
+                throw std::runtime_error(
+                    "Butterworth: non-real polynomial coefficients "
+                    "(unpaired poles)");
+            }
             result[i] = poly[i].real();
+        }
 
         // Normalize so a[0] == 1.0 (should already be 1)
         double a0 = result[0];
@@ -617,9 +628,12 @@ private:
             zpow *= inv_z;
         }
 
-        double gain = std::abs(num / den);
-        if (gain == 0.0)
-            return; // avoid division by zero
+        const double gain = std::abs(num / den);
+        if (!std::isfinite(gain) || gain <= 1e-12) {
+            throw std::runtime_error(
+                "Butterworth: gain normalization point produced an invalid "
+                "gain");
+        }
 
         for (auto &c : coeffs_.b)
             c /= gain;
