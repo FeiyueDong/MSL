@@ -47,7 +47,10 @@ public:
                         size_t rows,
                         size_t cols)
         : Base(rows, cols, data) {
-        assert(data.size() == rows * cols);
+        if (data.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix view: data span size must equal rows * cols");
+        }
     }
 
     // --- Copy semantics: Shallow copy (copies the view) ---
@@ -70,15 +73,18 @@ public:
                                               size_t row_end,
                                               size_t col_start,
                                               size_t col_end) {
-        assert(row_start < row_end && row_end <= this->rows_);
-        assert(col_start < col_end && col_end <= this->cols_);
-
-        // For column-major layout, creating arbitrary subviews requires
-        // either strided access or copying. Here we document the limitation.
-        // For now, we only support full-column subviews efficiently.
-        assert(
-            row_start == 0 && row_end == this->rows_
-            && "Arbitrary row subviews not supported in column-major layout");
+        if (row_start >= row_end || row_end > this->rows_) {
+            throw std::out_of_range("Matrix view: row range is out of bounds");
+        }
+        if (col_start >= col_end || col_end > this->cols_) {
+            throw std::out_of_range(
+                "Matrix view: column range is out of bounds");
+        }
+        if (row_start != 0 || row_end != this->rows_) {
+            throw std::invalid_argument(
+                "Matrix view: only full-column subviews are supported in "
+                "column-major layout");
+        }
 
         size_t sub_cols = col_end - col_start;
         std::complex<double> *sub_data = this->data() + col_start * this->rows_;
@@ -103,14 +109,20 @@ public:
 
     // --- In-place operations ---
     complex_matrix_view &operator+=(const complex_matrix_base &other) {
-        assert(this->rows_ == other.rows() && this->cols_ == other.cols());
+        if (this->rows_ != other.rows() || this->cols_ != other.cols()) {
+            throw std::invalid_argument(
+                "Matrix: operands must have the same shape");
+        }
         for (size_t i = 0; i < this->size(); ++i) {
             this->data_[i] += other.data()[i];
         }
         return *this;
     }
     complex_matrix_view &operator-=(const complex_matrix_base &other) {
-        assert(this->rows_ == other.rows() && this->cols_ == other.cols());
+        if (this->rows_ != other.rows() || this->cols_ != other.cols()) {
+            throw std::invalid_argument(
+                "Matrix: operands must have the same shape");
+        }
         for (size_t i = 0; i < this->size(); ++i) {
             this->data_[i] -= other.data()[i];
         }
@@ -131,7 +143,10 @@ public:
 
     // --- Copy data from another matrix ---
     void copy_from(const complex_matrix_base &src) {
-        assert(this->rows_ == src.rows() && this->cols_ == src.cols());
+        if (this->rows_ != src.rows() || this->cols_ != src.cols()) {
+            throw std::invalid_argument(
+                "Matrix: source must have the same shape");
+        }
         std::copy(src.begin(), src.end(), this->begin());
     }
 
@@ -218,7 +233,10 @@ public:
                               size_t rows,
                               size_t cols)
         : data_(data), rows_(rows), cols_(cols) {
-        assert(data.size() == rows * cols);
+        if (data.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix view: data span size must equal rows * cols");
+        }
     }
 
     // --- Copy and move ---

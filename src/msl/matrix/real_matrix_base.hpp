@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <span>
+#include <stdexcept>
 #include <utility>
 
 namespace msl::matrix {
@@ -32,7 +33,10 @@ public:
 
     real_matrix_base(size_t rows, size_t cols, std::span<double> data)
         : data_(data), rows_(rows), cols_(cols) {
-        assert(data_.size() == rows * cols);
+        if (data_.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix: data span size must equal rows * cols");
+        }
     }
 
     real_matrix_base(const real_matrix_base &) = default;
@@ -66,11 +70,17 @@ public:
     }
 
     // --- Column access (efficient in column-major layout) ---
-    [[nodiscard]] std::span<double> column(size_t j) noexcept {
+    [[nodiscard]] std::span<double> column(size_t j) {
+        if (j >= cols_) {
+            throw std::out_of_range("Matrix: column index out of range");
+        }
         return {data_.data() + j * rows_, rows_};
     }
 
-    [[nodiscard]] std::span<const double> column(size_t j) const noexcept {
+    [[nodiscard]] std::span<const double> column(size_t j) const {
+        if (j >= cols_) {
+            throw std::out_of_range("Matrix: column index out of range");
+        }
         return {data_.data() + j * rows_, rows_};
     }
 
@@ -108,7 +118,9 @@ public:
     }
 
     [[nodiscard]] inline double trace() {
-        assert(rows_ == cols_);
+        if (rows_ != cols_) {
+            throw std::invalid_argument("Trace requires a square matrix");
+        }
         double tr = 0.0;
         for (size_t i = 0; i < rows_; ++i) {
             tr += (*this)(i, i);

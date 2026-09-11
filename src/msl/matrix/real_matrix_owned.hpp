@@ -57,7 +57,10 @@ public:
     // Construct from span (deep copy)
     real_matrix_owned(size_t rows, size_t cols, std::span<const double> data)
         : Base(), storage_(data.begin(), data.end()) {
-        assert(data.size() == rows * cols);
+        if (data.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix: data span size must equal rows * cols");
+        }
         this->rows_ = rows;
         this->cols_ = cols;
         update_span();
@@ -68,7 +71,10 @@ public:
                       size_t cols,
                       std::initializer_list<double> values)
         : Base(), storage_(rows * cols) {
-        assert(values.size() == rows * cols);
+        if (values.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix: initializer list size must equal rows * cols");
+        }
         this->rows_ = rows;
         this->cols_ = cols;
 
@@ -163,7 +169,9 @@ public:
 
     // --- Row/Column extraction (returns owning copies) ---
     [[nodiscard]] real_matrix_owned row_copy(size_t i) const {
-        assert(i < this->rows_);
+        if (i >= this->rows_) {
+            throw std::out_of_range("Matrix: row index out of range");
+        }
         real_matrix_owned row(1, this->cols_);
         for (size_t j = 0; j < this->cols_; ++j) {
             row(0, j) = (*this)(i, j);
@@ -171,7 +179,9 @@ public:
         return row;
     }
     [[nodiscard]] real_matrix_owned column_copy(size_t j) const {
-        assert(j < this->cols_);
+        if (j >= this->cols_) {
+            throw std::out_of_range("Matrix: column index out of range");
+        }
         real_matrix_owned col(this->rows_, 1);
         const auto &col_span = this->column(j);
         std::copy(col_span.begin(), col_span.end(), col.storage_.begin());
@@ -183,8 +193,12 @@ public:
                                                    size_t row_end,
                                                    size_t col_start,
                                                    size_t col_end) const {
-        assert(row_start < row_end && row_end <= this->rows_);
-        assert(col_start < col_end && col_end <= this->cols_);
+        if (row_start >= row_end || row_end > this->rows_) {
+            throw std::out_of_range("Matrix: row range is out of bounds");
+        }
+        if (col_start >= col_end || col_end > this->cols_) {
+            throw std::out_of_range("Matrix: column range is out of bounds");
+        }
 
         size_t sub_rows = row_end - row_start;
         size_t sub_cols = col_end - col_start;
@@ -200,14 +214,20 @@ public:
 
     // --- In-place operations ---
     real_matrix_owned &operator+=(const real_matrix_base &other) {
-        assert(this->rows_ == other.rows() && this->cols_ == other.cols());
+        if (this->rows_ != other.rows() || this->cols_ != other.cols()) {
+            throw std::invalid_argument(
+                "Matrix: operands must have the same shape");
+        }
         for (size_t i = 0; i < storage_.size(); ++i) {
             storage_[i] += other.data()[i];
         }
         return *this;
     }
     real_matrix_owned &operator-=(const real_matrix_base &other) {
-        assert(this->rows_ == other.rows() && this->cols_ == other.cols());
+        if (this->rows_ != other.rows() || this->cols_ != other.cols()) {
+            throw std::invalid_argument(
+                "Matrix: operands must have the same shape");
+        }
         for (size_t i = 0; i < storage_.size(); ++i) {
             storage_[i] -= other.data()[i];
         }
@@ -293,7 +313,10 @@ inline void swap(real_matrix_owned &a, real_matrix_owned &b) noexcept {
 // Binary operators (return new matrix)
 [[nodiscard]] inline real_matrix_owned operator+(const real_matrix_owned &a,
                                                  const real_matrix_owned &b) {
-    assert(a.rows() == b.rows() && a.cols() == b.cols());
+    if (a.rows() != b.rows() || a.cols() != b.cols()) {
+        throw std::invalid_argument(
+            "Matrix: operands must have the same shape");
+    }
     real_matrix_owned result(a);
     result += b;
     return result;
@@ -301,7 +324,10 @@ inline void swap(real_matrix_owned &a, real_matrix_owned &b) noexcept {
 
 [[nodiscard]] inline real_matrix_owned operator-(const real_matrix_owned &a,
                                                  const real_matrix_owned &b) {
-    assert(a.rows() == b.rows() && a.cols() == b.cols());
+    if (a.rows() != b.rows() || a.cols() != b.cols()) {
+        throw std::invalid_argument(
+            "Matrix: operands must have the same shape");
+    }
     real_matrix_owned result(a);
     result -= b;
     return result;
@@ -309,7 +335,10 @@ inline void swap(real_matrix_owned &a, real_matrix_owned &b) noexcept {
 
 [[nodiscard]] inline real_matrix_owned operator*(const real_matrix_owned &a,
                                                  const real_matrix_owned &b) {
-    assert(a.cols() == b.rows());
+    if (a.cols() != b.rows()) {
+        throw std::invalid_argument(
+            "Matrix: inner dimensions must agree for multiplication");
+    }
     real_matrix_owned result(a.rows(), b.cols(), 0.0);
     for (size_t j = 0; j < b.cols(); ++j) {
         for (size_t i = 0; i < a.rows(); ++i) {

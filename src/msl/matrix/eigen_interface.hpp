@@ -19,6 +19,7 @@
 #include <complex>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
+#include <stdexcept>
 
 #include "matrix/complex_matrix_base.hpp"
 #include "matrix/complex_matrix_owned.hpp"
@@ -336,6 +337,9 @@ inline void inplace_eigen(matrixd &mat, Func &&func) {
  * @brief Matrix-matrix multiplication using Eigen
  */
 inline matrixd matmul(const matrixd &A, const matrixd &B) {
+    if (A.cols() != B.rows()) {
+        throw std::invalid_argument("matmul: inner dimensions must agree");
+    }
     auto eig_A = as_eigen(A);
     auto eig_B = as_eigen(B);
     return from_eigen(eig_A * eig_B);
@@ -346,7 +350,10 @@ inline matrixd matmul(const matrixd &A, const matrixd &B) {
  */
 inline std::vector<double> matvec(const matrixd &A,
                                   const std::vector<double> &x) {
-    assert(A.cols() == x.size());
+    if (A.cols() != x.size()) {
+        throw std::invalid_argument(
+            "matvec: matrix columns must match vector size");
+    }
 
     auto eig_A = as_eigen(A);
     Eigen::Map<const Eigen::VectorXd> eig_x(x.data(), x.size());
@@ -360,8 +367,13 @@ inline std::vector<double> matvec(const matrixd &A,
  */
 inline std::vector<double> solve(const matrixd &A,
                                  const std::vector<double> &b) {
-    assert(A.rows() == A.cols());
-    assert(A.rows() == b.size());
+    if (A.rows() != A.cols()) {
+        throw std::invalid_argument("solve: matrix must be square");
+    }
+    if (A.rows() != b.size()) {
+        throw std::invalid_argument(
+            "solve: right-hand side size must match matrix rows");
+    }
 
     auto eig_A = as_eigen(A);
     Eigen::Map<const Eigen::VectorXd> eig_b(b.data(), b.size());

@@ -19,6 +19,7 @@
 #include <cassert>
 #include <complex>
 #include <span>
+#include <stdexcept>
 #include <utility>
 
 namespace msl::matrix {
@@ -35,7 +36,10 @@ public:
                         size_t cols,
                         std::span<std::complex<double>> data)
         : data_(data), rows_(rows), cols_(cols) {
-        assert(data_.size() == rows * cols);
+        if (data_.size() != rows * cols) {
+            throw std::invalid_argument(
+                "Matrix: data span size must equal rows * cols");
+        }
     }
 
     complex_matrix_base(const complex_matrix_base &) = default;
@@ -74,12 +78,17 @@ public:
     }
 
     // --- Column access (efficient in column-major layout) ---
-    [[nodiscard]] std::span<std::complex<double>> column(size_t j) noexcept {
+    [[nodiscard]] std::span<std::complex<double>> column(size_t j) {
+        if (j >= cols_) {
+            throw std::out_of_range("Matrix: column index out of range");
+        }
         return {data_.data() + j * rows_, rows_};
     }
 
-    [[nodiscard]] std::span<const std::complex<double>>
-    column(size_t j) const noexcept {
+    [[nodiscard]] std::span<const std::complex<double>> column(size_t j) const {
+        if (j >= cols_) {
+            throw std::out_of_range("Matrix: column index out of range");
+        }
         return {data_.data() + j * rows_, rows_};
     }
 
@@ -121,7 +130,9 @@ public:
     }
 
     [[nodiscard]] inline std::complex<double> trace() {
-        assert(rows_ == cols_);
+        if (rows_ != cols_) {
+            throw std::invalid_argument("Trace requires a square matrix");
+        }
         std::complex<double> tr = 0.0;
         for (size_t i = 0; i < rows_; ++i) {
             tr += (*this)(i, i);

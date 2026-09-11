@@ -40,6 +40,19 @@ Matrix A = [a b]     Storage: [a, c, b, d]
            [c d]     (2 rows, 2 cols)
 ```
 
+## Error Handling
+
+Public operations validate their inputs and throw exceptions instead of relying
+on `assert` (which disappears in release builds):
+
+- `std::invalid_argument` for shape mismatches (arithmetic, `matmul`, `solve`,
+  decomposition domain errors) and for span/initializer-list size mismatches;
+- `std::out_of_range` for index and range errors (`row_copy`, `column_copy`,
+  `submatrix_copy`, `column`, view subviews).
+
+Element access `operator()(i, j)` remains unchecked for performance, matching
+the container convention.
+
 ## real_matrix_base
 
 The base class for real matrices. Wraps a `std::span<double>` with row/column dimensions.

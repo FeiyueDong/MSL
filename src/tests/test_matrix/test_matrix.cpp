@@ -520,6 +520,81 @@ int test_base_op() {
     while (0)
         ;
 
+    // 11) runtime validation errors
+    TEST_CASE("runtime shape validation") {
+        const auto throws_invalid = [](auto &&func) {
+            try {
+                func();
+            } catch (const std::invalid_argument &) {
+                return true;
+            } catch (...) {
+                return false;
+            }
+            return false;
+        };
+        const auto throws_out_of_range = [](auto &&func) {
+            try {
+                func();
+            } catch (const std::out_of_range &) {
+                return true;
+            } catch (...) {
+                return false;
+            }
+            return false;
+        };
+
+        matrix::matrixd A(2, 3);
+        matrix::matrixd B(3, 2);
+        EXPECT_TRUE(throws_invalid([&] { (void)(A + B); }));
+        EXPECT_TRUE(throws_invalid([&] { A += B; }));
+        EXPECT_TRUE(throws_invalid([&] { (void)(A * A); }));
+        EXPECT_TRUE(throws_invalid([&] { (void)matrix::trace(A); }));
+        EXPECT_TRUE(throws_out_of_range([&] { (void)A.row_copy(2); }));
+        EXPECT_TRUE(throws_out_of_range([&] { (void)A.column_copy(3); }));
+        EXPECT_TRUE(throws_out_of_range([&] { (void)A.column(3); }));
+        EXPECT_TRUE(
+            throws_out_of_range([&] { (void)A.submatrix_copy(0, 3, 0, 1); }));
+        EXPECT_TRUE(
+            throws_out_of_range([&] { (void)A.submatrix_copy(0, 1, 0, 4); }));
+
+        // Span/initializer-list constructors validate their size
+        std::vector<double> too_short{1.0, 2.0, 3.0};
+        EXPECT_TRUE(throws_invalid([&] {
+            (void)matrix::matrixd(2, 2, std::span<const double>(too_short));
+        }));
+        EXPECT_TRUE(throws_invalid(
+            [&] { (void)matrix::matrixd(2, 2, {1.0, 2.0, 3.0}); }));
+        EXPECT_TRUE(throws_invalid([&] {
+            std::vector<double> storage(6, 0.0);
+            (void)matrix::matrixd_view(std::span<double>(storage), 2, 2);
+        }));
+
+        // Eigen interface wrappers
+        EXPECT_TRUE(throws_invalid(
+            [&] { (void)matrix::eigen_interface::matmul(A, A); }));
+        EXPECT_TRUE(throws_invalid([&] {
+            (void)matrix::eigen_interface::matvec(A,
+                                                  std::vector<double>(2, 0.0));
+        }));
+        EXPECT_TRUE(throws_invalid([&] {
+            (void)matrix::eigen_interface::solve(A,
+                                                 std::vector<double>(2, 0.0));
+        }));
+        EXPECT_TRUE(throws_invalid([&] {
+            (void)matrix::eigen_interface::solve(matrix::matrixd::identity(2),
+                                                 std::vector<double>(3, 0.0));
+        }));
+
+        // View subview limitations are explicit exceptions
+        matrix::matrixd M(3, 3, 1.0);
+        matrix::matrixd_view view(M);
+        EXPECT_TRUE(throws_invalid([&] { (void)view.subview(1, 3, 0, 1); }));
+        EXPECT_TRUE(
+            throws_out_of_range([&] { (void)view.subview(0, 3, 1, 1); }));
+    }
+    while (0)
+        ;
+
     // 总结
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures
               << "\n";
