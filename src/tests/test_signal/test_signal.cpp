@@ -11,7 +11,6 @@
 
 #include "matrix.hpp"
 #include "signal.hpp"
-#include "signal/filter.hpp"
 
 using namespace msl;
 
