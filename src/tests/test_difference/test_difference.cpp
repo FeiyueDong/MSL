@@ -53,6 +53,15 @@ std::filesystem::path project_root() {
     return std::filesystem::current_path();
 }
 
+static void write_matrix(std::ofstream &file, const matrix::matrixd &mat) {
+    file << std::setprecision(17);
+    for (size_t i = 0; i < mat.rows(); ++i) {
+        for (size_t j = 0; j < mat.cols(); ++j) {
+            file << mat(i, j) << (j + 1 == mat.cols() ? '\n' : ' ');
+        }
+    }
+}
+
 int test_difference() {
     std::vector<double> y{1.0, 4.0, 9.0, 16.0};
     auto d = difference::diff(y);
@@ -112,6 +121,113 @@ int test_difference() {
     }
     EXPECT_TRUE(threw);
 
+    // Non-uniform forward gradient is exact for f(x) = x^2
+    const std::vector<double> nu_x{0.0, 1.0, 3.0, 4.0};
+    const std::vector<double> nu_y{0.0, 1.0, 9.0, 16.0};
+    const auto nu_forward = difference::forward_gradient(nu_y, nu_x);
+    EXPECT_NEAR(nu_forward[0], 1.0, 1e-12);
+    EXPECT_NEAR(nu_forward[1], 4.0, 1e-12);
+    EXPECT_NEAR(nu_forward[2], 7.0, 1e-12);
+
+    const auto nu_central = difference::central_gradient(nu_x, nu_y);
+    EXPECT_NEAR(nu_central[1], 2.0 * nu_x[1], 1e-12);
+    EXPECT_NEAR(nu_central[2], 2.0 * nu_x[2], 1e-12);
+
+    // Second derivative is exact for a quadratic at every point
+    const std::vector<double> quad_y{0.0, 1.0, 4.0, 9.0, 16.0};
+    const auto quad_second = difference::central_gradient2(quad_y, 1.0);
+    for (const double value : quad_second) {
+        EXPECT_NEAR(value, 2.0, 1e-12);
+    }
+
+    // 2D analytic fields on f(i, j) = i^2 + j^2
+    matrix::matrixd field(5, 5);
+    for (size_t i = 0; i < field.rows(); ++i) {
+        for (size_t j = 0; j < field.cols(); ++j) {
+            field(i, j) = static_cast<double>(i * i + j * j);
+        }
+    }
+    const auto gradient_2d = difference::central_gradient2d(field);
+    for (size_t i = 1; i + 1 < field.rows(); ++i) {
+        for (size_t j = 1; j + 1 < field.cols(); ++j) {
+            EXPECT_NEAR(
+                gradient_2d.first(i, j), 2.0 * static_cast<double>(j), 1e-12);
+            EXPECT_NEAR(
+                gradient_2d.second(i, j), 2.0 * static_cast<double>(i), 1e-12);
+        }
+    }
+
+    const auto laplacian_field = difference::laplacian(field);
+    for (size_t i = 1; i + 1 < field.rows(); ++i) {
+        for (size_t j = 1; j + 1 < field.cols(); ++j) {
+            EXPECT_NEAR(laplacian_field(i, j), 4.0, 1e-12);
+        }
+    }
+
+    matrix::matrixd vector_x(4, 4);
+    matrix::matrixd vector_y(4, 4);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            vector_x(i, j) = static_cast<double>(j); // x
+            vector_y(i, j) = static_cast<double>(i); // y
+        }
+    }
+    const auto divergence_field = difference::divergence(vector_x, vector_y);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            EXPECT_NEAR(divergence_field(i, j), 2.0, 1e-12);
+        }
+    }
+
+    matrix::matrixd curl_x(4, 4);
+    matrix::matrixd curl_y(4, 4);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            curl_x(i, j) = -static_cast<double>(i); // -y
+            curl_y(i, j) = static_cast<double>(j);  // x
+        }
+    }
+    const auto curl_field = difference::curl(curl_x, curl_y);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            EXPECT_NEAR(curl_field(i, j), 2.0, 1e-12);
+        }
+    }
+
+    // Savitzky-Golay derivative is exact for a quadratic (order 2 fit)
+    std::vector<double> sg_quadratic(11);
+    for (size_t i = 0; i < sg_quadratic.size(); ++i) {
+        const double xi = static_cast<double>(i);
+        sg_quadratic[i] = xi * xi;
+    }
+    const auto sg_derivative =
+        difference::savgol_gradient(sg_quadratic, 5, 2, 1.0);
+    for (size_t i = 0; i < sg_quadratic.size(); ++i) {
+        EXPECT_NEAR(sg_derivative[i], 2.0 * static_cast<double>(i), 1e-10);
+    }
+
+    // A cubic fit reproduces a cubic exactly
+    std::vector<double> sg_cubic(11);
+    for (size_t i = 0; i < sg_cubic.size(); ++i) {
+        const double xi = static_cast<double>(i);
+        sg_cubic[i] = xi * xi * xi;
+    }
+    const auto sg_cubic_derivative =
+        difference::savgol_gradient(sg_cubic, 7, 3, 1.0);
+    for (size_t i = 0; i < sg_cubic.size(); ++i) {
+        const double xi = static_cast<double>(i);
+        EXPECT_NEAR(sg_cubic_derivative[i], 3.0 * xi * xi, 1e-10);
+    }
+
+    bool threw_savgol = false;
+    try {
+        (void)difference::savgol_gradient(
+            std::vector<double>{1.0, 2.0, 3.0, 4.0, 5.0}, 4, 2, 1.0);
+    } catch (const std::invalid_argument &) {
+        threw_savgol = true;
+    }
+    EXPECT_TRUE(threw_savgol);
+
     auto compare_dir =
         project_root() / "test_result" / "difference" / "matlab_compare";
     std::filesystem::create_directories(compare_dir);
@@ -147,6 +263,70 @@ int test_difference() {
             col_file << col_diff(i, j)
                      << (j + 1 == col_diff.cols() ? '\n' : ' ');
         }
+    }
+
+    // ---- Non-uniform gradient comparison data ----
+    std::ofstream nonuniform_input_file(compare_dir
+                                        / "difference_nonuniform_input.txt");
+    nonuniform_input_file << std::setprecision(17);
+    for (size_t i = 0; i < nu_x.size(); ++i) {
+        nonuniform_input_file << nu_x[i] << " " << nu_y[i] << "\n";
+    }
+    std::ofstream forward_nonuniform_file(
+        compare_dir / "difference_forward_nonuniform.txt");
+    forward_nonuniform_file << std::setprecision(17);
+    for (const double value : nu_forward) {
+        forward_nonuniform_file << value << "\n";
+    }
+    std::ofstream central_nonuniform_file(
+        compare_dir / "difference_central_nonuniform.txt");
+    central_nonuniform_file << std::setprecision(17);
+    for (const double value : nu_central) {
+        central_nonuniform_file << value << "\n";
+    }
+
+    // ---- Second derivative comparison data ----
+    std::ofstream second_derivative_file(compare_dir
+                                         / "difference_second_derivative.txt");
+    second_derivative_file << std::setprecision(17);
+    for (size_t i = 0; i < quad_y.size(); ++i) {
+        second_derivative_file << static_cast<double>(i) << " " << quad_y[i]
+                               << " " << quad_second[i] << "\n";
+    }
+
+    // ---- 2D gradient / Laplacian comparison data ----
+    std::ofstream field_file(compare_dir / "difference_field.txt");
+    write_matrix(field_file, field);
+    std::ofstream grad_x_file(compare_dir / "difference_grad_x.txt");
+    write_matrix(grad_x_file, gradient_2d.first);
+    std::ofstream grad_y_file(compare_dir / "difference_grad_y.txt");
+    write_matrix(grad_y_file, gradient_2d.second);
+    std::ofstream laplacian_file(compare_dir / "difference_laplacian.txt");
+    write_matrix(laplacian_file, laplacian_field);
+
+    // ---- Divergence / curl comparison data ----
+    std::ofstream vector_x_file(compare_dir / "difference_vector_x.txt");
+    write_matrix(vector_x_file, vector_x);
+    std::ofstream vector_y_file(compare_dir / "difference_vector_y.txt");
+    write_matrix(vector_y_file, vector_y);
+    std::ofstream divergence_file(compare_dir / "difference_divergence.txt");
+    write_matrix(divergence_file, divergence_field);
+    std::ofstream curl_file(compare_dir / "difference_curl.txt");
+    write_matrix(curl_file, curl_field);
+
+    // ---- Savitzky-Golay comparison data ----
+    std::vector<double> savgol_input(15);
+    for (size_t i = 0; i < savgol_input.size(); ++i) {
+        const double xi = static_cast<double>(i);
+        savgol_input[i] = 0.5 * xi * xi * xi - 2.0 * xi * xi + 0.3 * xi;
+    }
+    const auto savgol_result =
+        difference::savgol_gradient(savgol_input, 5, 2, 1.0);
+    std::ofstream savgol_file(compare_dir / "difference_savgol.txt");
+    savgol_file << std::setprecision(17);
+    for (size_t i = 0; i < savgol_input.size(); ++i) {
+        savgol_file << static_cast<double>(i) << " " << savgol_input[i] << " "
+                    << savgol_result[i] << "\n";
     }
 
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures

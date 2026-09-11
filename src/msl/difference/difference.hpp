@@ -16,10 +16,12 @@
 #ifndef MSL_DIFFERENCE_HPP
 #define MSL_DIFFERENCE_HPP
 
+#include <algorithm>
 #include <span>
 #include <stdexcept>
 #include <vector>
 
+#include "matrix/martrix_decompose.hpp"
 #include "matrix/real_matrix_base.hpp"
 #include "matrix/real_matrix_owned.hpp"
 
@@ -798,9 +800,11 @@ inline matrix::matrixd curl(const matrix::real_matrix_base &Fx,
  * @brief Savitzky-Golay derivative (smoothed, for noisy data)
  *
  * Zero-copy operation: directly fills the provided gradient span.
- * Uses polynomial fitting over local window.
- * More robust to noise than raw finite differences.
- * Output size equals input size
+ * Fits a polynomial of degree `poly_order` to a moving window of
+ * `window_size` samples and evaluates its derivative. Interior points use the
+ * classic symmetric Savitzky-Golay weights; boundary points use a
+ * least-squares fit over the first/last window, matching MATLAB
+ * `sgolayfilt` boundary handling. Output size equals input size.
  *
  * @param y Function values
  * @param grad Output buffer for smoothed gradient values (must have same size
@@ -830,27 +834,85 @@ inline void savgol_gradient(std::span<const double> y,
             "Gradient: span must have same size as input");
     }
 
-    // For simplicity, use central differences with averaging
-    // Full S-G implementation would require matrix operations
+    const int half_window = window_size / 2;
+    const int n = static_cast<int>(y.size());
 
-    int half_window = window_size / 2;
+    if (poly_order == 0) {
+        std::fill(grad.begin(), grad.end(), 0.0);
+        return;
+    }
 
-    // Central smoothed derivative
-    for (size_t i = 0; i < y.size(); ++i) {
-        int start = std::max(0, static_cast<int>(i) - half_window);
-        int end = std::min(static_cast<int>(y.size()) - 1,
-                           static_cast<int>(i) + half_window);
+    // Build the least-squares derivative weights for a given set of local
+    // offsets: the derivative at offset 0 of the polynomial fit is the
+    // second row of the pseudoinverse of the Vandermonde matrix.
+    const auto derivative_weights =
+        [poly_order](std::span<const double> offsets) {
+            const int points = static_cast<int>(offsets.size());
+            const int order = std::min(poly_order, points - 1);
+            matrix::matrixd vandermonde(points, order + 1);
+            for (int i = 0; i < points; ++i) {
+                double power = 1.0;
+                for (int j = 0; j <= order; ++j) {
+                    vandermonde(i, j) = power;
+                    power *= offsets[static_cast<size_t>(i)];
+                }
+            }
+            const auto pseudo_inverse = matrix::pinv(vandermonde);
+            std::vector<double> weights(static_cast<size_t>(points));
+            for (int i = 0; i < points; ++i) {
+                weights[static_cast<size_t>(i)] = pseudo_inverse(1, i);
+            }
+            return weights;
+        };
 
-        // Simple weighted average of local differences
-        double sum_grad = 0.0;
-        int count = 0;
+    // Interior points: one symmetric window template reused for all samples
+    std::vector<double> interior_offsets(static_cast<size_t>(window_size));
+    for (int k = -half_window; k <= half_window; ++k) {
+        interior_offsets[static_cast<size_t>(k + half_window)] =
+            static_cast<double>(k);
+    }
+    const auto interior_weights = derivative_weights(interior_offsets);
 
-        for (int j = start; j < end; ++j) {
-            sum_grad += (y[j + 1] - y[j]) / dx;
-            ++count;
+    // Boundary points: first/last full window evaluated at each sample
+    std::vector<std::vector<double>> left_weights(
+        static_cast<size_t>(half_window));
+    std::vector<std::vector<double>> right_weights(
+        static_cast<size_t>(half_window));
+    for (int i = 0; i < half_window; ++i) {
+        std::vector<double> offsets(static_cast<size_t>(window_size));
+        for (int j = 0; j < window_size; ++j) {
+            offsets[static_cast<size_t>(j)] = static_cast<double>(j - i);
         }
+        left_weights[static_cast<size_t>(i)] = derivative_weights(offsets);
+        for (int j = 0; j < window_size; ++j) {
+            offsets[static_cast<size_t>(j)] =
+                static_cast<double>(j - (window_size - 1) + i);
+        }
+        right_weights[static_cast<size_t>(i)] = derivative_weights(offsets);
+    }
 
-        grad[i] = sum_grad / count;
+    for (int i = 0; i < n; ++i) {
+        double value = 0.0;
+        if (i >= half_window && i + half_window < n) {
+            for (int k = -half_window; k <= half_window; ++k) {
+                value += interior_weights[static_cast<size_t>(k + half_window)]
+                         * y[static_cast<size_t>(i + k)];
+            }
+        } else if (i < half_window) {
+            for (int j = 0; j < window_size; ++j) {
+                value +=
+                    left_weights[static_cast<size_t>(i)][static_cast<size_t>(j)]
+                    * y[static_cast<size_t>(j)];
+            }
+        } else {
+            const int start = n - window_size;
+            for (int j = 0; j < window_size; ++j) {
+                value += right_weights[static_cast<size_t>(n - 1 - i)]
+                                      [static_cast<size_t>(j)]
+                         * y[static_cast<size_t>(start + j)];
+            }
+        }
+        grad[static_cast<size_t>(i)] = value / dx;
     }
 }
 
