@@ -89,6 +89,35 @@ static double magnitude_response(const signal::FilterCoefficients &coeffs,
     return std::abs(frequency_response(coeffs, f));
 }
 
+static void
+write_complex_vector(std::ofstream &file,
+                     const std::vector<std::complex<double>> &values) {
+    file << std::setprecision(17);
+    for (const auto &value : values) {
+        file << value.real() << " " << value.imag() << "\n";
+    }
+}
+
+static void write_complex_matrix(std::ofstream &file,
+                                 const matrix::matrixc &mat) {
+    file << std::setprecision(17);
+    for (size_t i = 0; i < mat.rows(); ++i) {
+        for (size_t j = 0; j < mat.cols(); ++j) {
+            file << mat(i, j).real() << " " << mat(i, j).imag()
+                 << (j + 1 == mat.cols() ? '\n' : ' ');
+        }
+    }
+}
+
+static void write_matrix(std::ofstream &file, const matrix::matrixd &mat) {
+    file << std::setprecision(17);
+    for (size_t i = 0; i < mat.rows(); ++i) {
+        for (size_t j = 0; j < mat.cols(); ++j) {
+            file << mat(i, j) << (j + 1 == mat.cols() ? '\n' : ' ');
+        }
+    }
+}
+
 // Digital center corresponding to the analog geometric mean of the pre-warped
 // cutoffs.
 static double band_center_frequency(double low, double high) {
@@ -634,6 +663,117 @@ int main() {
         }
         butter_filter_file << "\n";
         butter_filtfilt_file << "\n";
+    }
+
+    // ---- Matrix FFT/IFFT comparison data ----
+    matrix::matrixd fft_matrix(4, 3);
+    for (size_t i = 0; i < fft_matrix.rows(); ++i) {
+        for (size_t j = 0; j < fft_matrix.cols(); ++j) {
+            fft_matrix(i, j) = std::sin(0.5 * static_cast<double>(i)
+                                        + 0.7 * static_cast<double>(j))
+                               + 0.1 * static_cast<double>(i * j);
+        }
+    }
+    const auto fft_rows_result = signal::fft_rows(fft_matrix);
+    const auto ifft_rows_result = signal::ifft_rows_real(fft_rows_result);
+    const auto fft_columns_result = signal::fft_columns(fft_matrix);
+    const auto ifft_columns_result =
+        signal::ifft_columns_real(fft_columns_result);
+
+    std::ofstream fft_matrix_file(compare_dir / "signal_fft_matrix_input.txt");
+    write_matrix(fft_matrix_file, fft_matrix);
+    std::ofstream fft_rows_file(compare_dir / "signal_fft_rows.txt");
+    write_complex_matrix(fft_rows_file, fft_rows_result);
+    std::ofstream ifft_rows_file(compare_dir / "signal_ifft_rows.txt");
+    write_matrix(ifft_rows_file, ifft_rows_result);
+    std::ofstream fft_columns_file(compare_dir / "signal_fft_columns.txt");
+    write_complex_matrix(fft_columns_file, fft_columns_result);
+    std::ofstream ifft_columns_file(compare_dir / "signal_ifft_columns.txt");
+    write_matrix(ifft_columns_file, ifft_columns_result);
+
+    // ---- Welch PSD/CPSD comparison data ----
+    constexpr size_t welch_segment = 8;
+    constexpr size_t welch_overlap = 4;
+    constexpr size_t welch_nfft = 16;
+    constexpr double welch_fs = 8.0;
+    std::vector<double> welch_x(32);
+    std::vector<double> welch_y(32);
+    for (size_t n = 0; n < welch_x.size(); ++n) {
+        const double t = static_cast<double>(n);
+        welch_x[n] = std::sin(2.0 * std::numbers::pi * 0.1 * t)
+                     + 0.5 * std::cos(2.0 * std::numbers::pi * 0.25 * t) + 0.1;
+        welch_y[n] = std::cos(2.0 * std::numbers::pi * 0.1 * t)
+                     - 0.25 * std::sin(2.0 * std::numbers::pi * 0.25 * t);
+    }
+    const auto welch_window = signal::hann_window(welch_segment);
+    const auto welch_psd = signal::psd_welch(welch_x,
+                                             welch_window,
+                                             welch_overlap,
+                                             welch_segment,
+                                             welch_nfft,
+                                             welch_fs);
+    const auto welch_cpsd = signal::cpsd_welch(welch_x,
+                                               welch_y,
+                                               welch_window,
+                                               welch_overlap,
+                                               welch_segment,
+                                               welch_nfft,
+                                               welch_fs);
+    std::ofstream welch_x_file(compare_dir / "signal_welch_x.txt");
+    welch_x_file << std::setprecision(17);
+    std::ofstream welch_y_file(compare_dir / "signal_welch_y.txt");
+    welch_y_file << std::setprecision(17);
+    for (size_t n = 0; n < welch_x.size(); ++n) {
+        welch_x_file << welch_x[n] << "\n";
+        welch_y_file << welch_y[n] << "\n";
+    }
+    std::ofstream welch_window_file(compare_dir / "signal_welch_window.txt");
+    welch_window_file << std::setprecision(17);
+    for (const double value : welch_window) {
+        welch_window_file << value << "\n";
+    }
+    std::ofstream welch_psd_file(compare_dir / "signal_welch_psd.txt");
+    welch_psd_file << std::setprecision(17);
+    for (const double value : welch_psd) {
+        welch_psd_file << value << "\n";
+    }
+    std::ofstream welch_cpsd_file(compare_dir / "signal_welch_cpsd.txt");
+    write_complex_vector(welch_cpsd_file, welch_cpsd);
+
+    // ---- Unbiased cross-covariance comparison data ----
+    std::vector<double> xcov_x(8);
+    std::vector<double> xcov_y(8);
+    for (size_t n = 0; n < xcov_x.size(); ++n) {
+        const double t = static_cast<double>(n);
+        xcov_x[n] = std::sin(0.4 * t) + 0.05 * t;
+        xcov_y[n] = std::cos(0.3 * t) - 0.02 * t * t;
+    }
+    const auto xcov_result = signal::xcov_unbiased(xcov_x, xcov_y, 3);
+    std::ofstream xcov_input_file(compare_dir / "signal_xcov_inputs.txt");
+    xcov_input_file << std::setprecision(17);
+    for (size_t n = 0; n < xcov_x.size(); ++n) {
+        xcov_input_file << xcov_x[n] << " " << xcov_y[n] << "\n";
+    }
+    std::ofstream xcov_file(compare_dir / "signal_xcov.txt");
+    xcov_file << std::setprecision(17);
+    for (const double value : xcov_result) {
+        xcov_file << value << "\n";
+    }
+
+    // ---- Detrend comparison data ----
+    std::vector<double> detrend_input(16);
+    for (size_t n = 0; n < detrend_input.size(); ++n) {
+        const double t = static_cast<double>(n);
+        detrend_input[n] =
+            0.5 + 0.05 * t + std::sin(2.0 * std::numbers::pi * 0.2 * t);
+    }
+    const auto detrend_mean_removed = signal::detrend(detrend_input, 0);
+    const auto detrend_linear_removed = signal::detrend(detrend_input, 1);
+    std::ofstream detrend_file(compare_dir / "signal_detrend.txt");
+    detrend_file << std::setprecision(17);
+    for (size_t n = 0; n < detrend_input.size(); ++n) {
+        detrend_file << detrend_input[n] << " " << detrend_mean_removed[n]
+                     << " " << detrend_linear_removed[n] << "\n";
     }
 
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures

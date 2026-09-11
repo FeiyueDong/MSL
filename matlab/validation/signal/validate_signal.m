@@ -36,6 +36,42 @@ filter_ref = filter([0.5, 0.5], 1.0, filter_data(:, 1));
 assert(max(abs(filter_data(:, 2) - filter_ref)) < 1e-12, ...
     'Filter comparison failed.');
 
+% ---- Matrix FFT/IFFT (rows and columns) ----
+matrix_fft_input = fullfile(data_dir, 'signal_fft_matrix_input.txt');
+if ~isfile(matrix_fft_input)
+    error('Missing comparison data. Run "xmake run test_signal" first.');
+end
+fft_matrix = readmatrix(matrix_fft_input);
+fft_rows_msl = read_complex(fullfile(data_dir, 'signal_fft_rows.txt'));
+fft_rows_ref = fft(fft_matrix, [], 2);
+assert(max(abs(fft_rows_msl - fft_rows_ref), [], 'all') < 1e-10, ...
+    'Row-wise FFT comparison failed.');
+
+ifft_rows_msl = readmatrix(fullfile(data_dir, 'signal_ifft_rows.txt'));
+assert(max(abs(ifft_rows_msl - real(ifft(fft_rows_ref, [], 2))), [], 'all') < 1e-10, ...
+    'Row-wise IFFT round-trip comparison failed.');
+
+fft_columns_msl = read_complex(fullfile(data_dir, 'signal_fft_columns.txt'));
+fft_columns_ref = fft(fft_matrix, [], 1);
+assert(max(abs(fft_columns_msl - fft_columns_ref), [], 'all') < 1e-10, ...
+    'Column-wise FFT comparison failed.');
+
+ifft_columns_msl = readmatrix(fullfile(data_dir, 'signal_ifft_columns.txt'));
+assert(max(abs(ifft_columns_msl - real(ifft(fft_columns_ref, [], 1))), [], 'all') < 1e-10, ...
+    'Column-wise IFFT round-trip comparison failed.');
+
+% ---- Detrend (polynomial trend removal) ----
+detrend_data = readmatrix(fullfile(data_dir, 'signal_detrend.txt'));
+detrend_values = detrend_data(:, 1);
+detrend_index = (0:numel(detrend_values) - 1)';
+detrend_mean_ref = detrend_values - mean(detrend_values);
+detrend_linear_coeffs = polyfit(detrend_index, detrend_values, 1);
+detrend_linear_ref = detrend_values - polyval(detrend_linear_coeffs, detrend_index);
+assert(max(abs(detrend_data(:, 2) - detrend_mean_ref)) < 1e-10, ...
+    'Mean detrend comparison failed.');
+assert(max(abs(detrend_data(:, 3) - detrend_linear_ref)) < 1e-8, ...
+    'Linear detrend comparison failed.');
+
 % ---- Butterworth / filter / filtfilt / freqz cross validation ----
 butter_cases_file = fullfile(data_dir, 'butterworth_cases.txt');
 butter_response_file = fullfile(data_dir, 'butterworth_response.txt');
@@ -96,10 +132,40 @@ else
              '(error %.3e).'], case_index, filtfilt_error);
     end
 
+    % ---- Welch PSD/CPSD ----
+    welch_x = readmatrix(fullfile(data_dir, 'signal_welch_x.txt'));
+    welch_y = readmatrix(fullfile(data_dir, 'signal_welch_y.txt'));
+    welch_window = readmatrix(fullfile(data_dir, 'signal_welch_window.txt'));
+    welch_psd_msl = readmatrix(fullfile(data_dir, 'signal_welch_psd.txt'));
+    welch_cpsd_msl = read_complex(fullfile(data_dir, 'signal_welch_cpsd.txt'));
+
+    [welch_psd_ref, ~] = pwelch(welch_x, welch_window, 4, 16, 8, 'twosided');
+    welch_psd_error = max(abs(welch_psd_msl - welch_psd_ref));
+    assert(welch_psd_error < 1e-10, ...
+        sprintf('Welch PSD comparison failed (error %.3e).', welch_psd_error));
+
+    [welch_cpsd_ref, ~] = cpsd(welch_x, welch_y, welch_window, 4, 16, 8, ...
+        'twosided');
+    welch_cpsd_error = max(abs(welch_cpsd_msl - welch_cpsd_ref));
+    assert(welch_cpsd_error < 1e-10, ...
+        sprintf('Welch CPSD comparison failed (error %.3e).', ...
+        welch_cpsd_error));
+
+    % ---- Unbiased cross-covariance ----
+    xcov_inputs = readmatrix(fullfile(data_dir, 'signal_xcov_inputs.txt'));
+    xcov_msl = readmatrix(fullfile(data_dir, 'signal_xcov.txt'));
+    xcov_ref = xcov(xcov_inputs(:, 1), xcov_inputs(:, 2), 3, 'unbiased');
+    xcov_error = max(abs(xcov_msl - xcov_ref));
+    assert(xcov_error < 1e-10, ...
+        sprintf('Unbiased cross-covariance comparison failed (error %.3e).', ...
+        xcov_error));
+
     fprintf(['Signal validation passed. FFT error = %.3e, Butterworth ' ...
         'response error = %.3e, filter error = %.3e, filtfilt error = ' ...
-        '%.3e\n'], max(abs(X_msl - X_ref)), max_response_error, ...
-        max_filter_error, max_filtfilt_error);
+        '%.3e, Welch PSD error = %.3e, Welch CPSD error = %.3e, ' ...
+        'xcov error = %.3e\n'], max(abs(X_msl - X_ref)), max_response_error, ...
+        max_filter_error, max_filtfilt_error, welch_psd_error, ...
+        welch_cpsd_error, xcov_error);
 end
 
 function [b, a] = design_butter_case(case_row)
@@ -119,4 +185,9 @@ function [b, a] = design_butter_case(case_row)
         otherwise
             error('Unknown Butterworth case type %d.', type);
     end
+end
+
+function M = read_complex(path)
+    raw = readmatrix(path);
+    M = raw(:, 1:2:end) + 1i * raw(:, 2:2:end);
 end
