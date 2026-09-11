@@ -115,6 +115,24 @@ static bool columns_are_orthonormal(const matrix::real_matrix_base &vectors,
     return true;
 }
 
+static bool
+complex_columns_are_orthonormal(const matrix::complex_matrix_base &vectors,
+                                double tolerance) {
+    for (size_t i = 0; i < vectors.cols(); ++i) {
+        for (size_t j = 0; j < vectors.cols(); ++j) {
+            std::complex<double> dot = 0.0;
+            for (size_t row = 0; row < vectors.rows(); ++row) {
+                dot += std::conj(vectors(row, i)) * vectors(row, j);
+            }
+            const double expected = i == j ? 1.0 : 0.0;
+            if (std::abs(dot - expected) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static bool lower_unit_triangular(const matrix::real_matrix_base &A,
                                   double tolerance) {
     if (A.rows() != A.cols()) {
@@ -498,16 +516,28 @@ int test_decompositions() {
         auto svd = matrix::svd(A);
         auto U = svd[0];
         auto S = svd[1];
-        auto Vt = svd[2];
+        auto V = svd[2];
 
-        // Reconstruct A from U * S * Vt
+        // Reconstruct A from U * S * V^T
         auto US = U * S;
-        auto A_reconstructed = US * Vt;
+        auto A_reconstructed = US * matrix::transpose(V);
 
         // Check reconstruction
         for (size_t j = 0; j < A.cols(); ++j)
             for (size_t i = 0; i < A.rows(); ++i)
                 EXPECT_NEAR(A(i, j), A_reconstructed(i, j), 1e-10);
+
+        // Singular values are non-negative and in descending order
+        for (size_t i = 0; i < std::min(A.rows(), A.cols()); ++i) {
+            EXPECT_TRUE(S(i, i) >= 0.0);
+            if (i > 0) {
+                EXPECT_TRUE(S(i - 1, i - 1) >= S(i, i));
+            }
+        }
+
+        // Left and right singular vectors are orthonormal
+        EXPECT_TRUE(columns_are_orthonormal(U, 1e-10));
+        EXPECT_TRUE(columns_are_orthonormal(V, 1e-10));
     }
     while (0)
         ;
@@ -525,16 +555,29 @@ int test_decompositions() {
         auto svd = matrix::svd(A);
         auto U = svd[0];
         auto S = svd[1];
-        auto Vt = svd[2];
+        auto V = svd[2];
 
-        // Reconstruct A from U * S * Vt
+        // Reconstruct A from U * S * V^H
         auto US = U * S;
-        auto A_reconstructed = US * Vt.conjugate_transpose();
+        auto A_reconstructed = US * matrix::conjugate_transpose(V);
 
         // Check reconstruction
         for (size_t j = 0; j < A.cols(); ++j)
             for (size_t i = 0; i < A.rows(); ++i)
                 EXPECT_CPLX_NEAR(A(i, j), A_reconstructed(i, j), 1e-10);
+
+        // Singular values are real, non-negative and descending
+        for (size_t i = 0; i < std::min(A.rows(), A.cols()); ++i) {
+            EXPECT_NEAR(S(i, i).imag(), 0.0, 1e-12);
+            EXPECT_TRUE(S(i, i).real() >= 0.0);
+            if (i > 0) {
+                EXPECT_TRUE(S(i - 1, i - 1).real() >= S(i, i).real());
+            }
+        }
+
+        // Left and right singular vectors are orthonormal
+        EXPECT_TRUE(complex_columns_are_orthonormal(U, 1e-10));
+        EXPECT_TRUE(complex_columns_are_orthonormal(V, 1e-10));
     }
     while (0)
         ;
@@ -956,7 +999,7 @@ int main() {
     svd_input(1, 1) = 5.0;
     svd_input(2, 1) = 6.0;
     auto svd = matrix::svd(svd_input);
-    auto reconstructed = (svd[0] * svd[1]) * svd[2];
+    auto reconstructed = (svd[0] * svd[1]) * matrix::transpose(svd[2]);
     std::ofstream svd_input_file(compare_dir / "matrix_svd_input.txt");
     write_matrix(svd_input_file, svd_input);
     std::ofstream svd_file(compare_dir / "matrix_svd_reconstruction.txt");
