@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 #include "matrix.hpp"
@@ -95,6 +96,59 @@ static bool matrix_near(const matrix::real_matrix_base &actual,
         }
     }
     return true;
+}
+
+static bool columns_are_orthonormal(const matrix::real_matrix_base &vectors,
+                                    double tolerance) {
+    for (size_t i = 0; i < vectors.cols(); ++i) {
+        for (size_t j = 0; j < vectors.cols(); ++j) {
+            double dot = 0.0;
+            for (size_t row = 0; row < vectors.rows(); ++row) {
+                dot += vectors(row, i) * vectors(row, j);
+            }
+            const double expected = i == j ? 1.0 : 0.0;
+            if (std::abs(dot - expected) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static double singular_triplet_relative_residual(
+    const matrix::real_matrix_base &A,
+    const matrix::truncated_svd_result &decomposition,
+    size_t index) {
+    double residual_squared = 0.0;
+    double matrix_norm_squared = 0.0;
+    for (const double value : A) {
+        matrix_norm_squared += value * value;
+    }
+    for (size_t row = 0; row < A.rows(); ++row) {
+        double av = 0.0;
+        for (size_t column = 0; column < A.cols(); ++column) {
+            av += A(row, column) * decomposition.V(column, index);
+        }
+        const double residual = av
+                                - decomposition.singular_values[index]
+                                      * decomposition.U(row, index);
+        residual_squared += residual * residual;
+    }
+    return std::sqrt(residual_squared)
+           / std::max(1.0, std::sqrt(matrix_norm_squared));
+}
+
+static matrix::matrixd
+diagonal_test_matrix(size_t rows, size_t cols, size_t numerical_rank) {
+    matrix::matrixd result(rows, cols);
+    const size_t diagonal_size = std::min(rows, cols);
+    for (size_t i = 0; i < std::min(diagonal_size, numerical_rank); ++i) {
+        result(i, i) = i == 0 ? 12.0 : (i == 1 ? 8.0 : 5.0);
+    }
+    for (size_t i = numerical_rank; i < diagonal_size; ++i) {
+        result(i, i) = 0.1 / static_cast<double>(i + 1);
+    }
+    return result;
 }
 
 std::filesystem::path project_root() {
@@ -561,6 +615,142 @@ int test_decompositions() {
         const auto left_only = matrix::truncated_svd(A, 1, false);
         EXPECT_EQ(left_only.V.rows(), 0);
         EXPECT_EQ(left_only.V.cols(), 0);
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Deterministic randomized truncated SVD") {
+        const auto check_shape = [](size_t rows, size_t cols) {
+            constexpr size_t requested_rank = 3;
+            auto A = diagonal_test_matrix(rows, cols, requested_rank);
+            const auto full = matrix::svd(A);
+            const auto leading = matrix::truncated_svd(A, requested_rank);
+            const auto repeated = matrix::truncated_svd(A, requested_rank);
+
+            EXPECT_EQ(leading.U.rows(), rows);
+            EXPECT_EQ(leading.U.cols(), requested_rank);
+            EXPECT_EQ(leading.V.rows(), cols);
+            EXPECT_EQ(leading.V.cols(), requested_rank);
+            EXPECT_EQ(leading.singular_values.size(), requested_rank);
+            EXPECT_TRUE(columns_are_orthonormal(leading.U, 1e-10));
+            EXPECT_TRUE(columns_are_orthonormal(leading.V, 1e-10));
+            EXPECT_TRUE(matrix_near(leading.U, repeated.U, 1e-13));
+            EXPECT_TRUE(matrix_near(leading.V, repeated.V, 1e-13));
+
+            for (size_t i = 0; i < requested_rank; ++i) {
+                const double relative_error =
+                    std::abs(leading.singular_values[i] - full[1](i, i))
+                    / full[1](i, i);
+                EXPECT_TRUE(relative_error < 1e-6);
+                EXPECT_TRUE(i == 0
+                            || leading.singular_values[i - 1]
+                                   >= leading.singular_values[i]);
+                EXPECT_TRUE(singular_triplet_relative_residual(A, leading, i)
+                            < 1e-6);
+                EXPECT_NEAR(leading.singular_values[i],
+                            repeated.singular_values[i],
+                            1e-13);
+            }
+        };
+
+        check_shape(24, 24);
+        check_shape(32, 20);
+        check_shape(20, 32);
+
+        matrix::matrixd repeated_values(24, 24);
+        repeated_values(0, 0) = 10.0;
+        repeated_values(1, 1) = 10.0;
+        for (size_t i = 2; i < 24; ++i) {
+            repeated_values(i, i) = 0.1 / static_cast<double>(i + 1);
+        }
+        const auto repeated_subspace =
+            matrix::truncated_svd(repeated_values, 2);
+        EXPECT_NEAR(repeated_subspace.singular_values[0], 10.0, 1e-8);
+        EXPECT_NEAR(repeated_subspace.singular_values[1], 10.0, 1e-8);
+        EXPECT_TRUE(columns_are_orthonormal(repeated_subspace.U, 1e-10));
+        EXPECT_TRUE(columns_are_orthonormal(repeated_subspace.V, 1e-10));
+        for (size_t i = 0; i < 2; ++i) {
+            EXPECT_TRUE(singular_triplet_relative_residual(
+                            repeated_values, repeated_subspace, i)
+                        < 1e-8);
+        }
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Randomized truncated SVD rank-deficient and zero matrices") {
+        matrix::truncated_svd_options options;
+        options.oversampling = 2;
+        options.power_iterations = 2;
+
+        matrix::matrixd deficient(12, 10);
+        deficient(0, 0) = 4.0;
+        deficient(1, 1) = 2.0;
+        const auto deficient_result =
+            matrix::truncated_svd(deficient, 4, options);
+        EXPECT_NEAR(deficient_result.singular_values[0], 4.0, 1e-12);
+        EXPECT_NEAR(deficient_result.singular_values[1], 2.0, 1e-12);
+        EXPECT_NEAR(deficient_result.singular_values[2], 0.0, 1e-12);
+        EXPECT_NEAR(deficient_result.singular_values[3], 0.0, 1e-12);
+        EXPECT_TRUE(columns_are_orthonormal(deficient_result.U, 1e-10));
+        EXPECT_TRUE(columns_are_orthonormal(deficient_result.V, 1e-10));
+        for (size_t i = 0; i < 4; ++i) {
+            EXPECT_TRUE(singular_triplet_relative_residual(
+                            deficient, deficient_result, i)
+                        < 1e-10);
+        }
+
+        const auto zero = matrix::matrixd::zeros(12, 10);
+        const auto zero_result = matrix::truncated_svd(zero, 4, options);
+        EXPECT_TRUE(columns_are_orthonormal(zero_result.U, 1e-10));
+        EXPECT_TRUE(columns_are_orthonormal(zero_result.V, 1e-10));
+        for (const double value : zero_result.singular_values) {
+            EXPECT_EQ(value, 0.0);
+        }
+
+        options.compute_right_vectors = false;
+        const auto left_only = matrix::truncated_svd(deficient, 4, options);
+        EXPECT_EQ(left_only.U.rows(), deficient.rows());
+        EXPECT_EQ(left_only.U.cols(), 4);
+        EXPECT_EQ(left_only.V.rows(), 0);
+        EXPECT_EQ(left_only.V.cols(), 0);
+        EXPECT_TRUE(columns_are_orthonormal(left_only.U, 1e-10));
+    }
+    while (0)
+        ;
+
+    TEST_CASE("Randomized truncated SVD validates rank and finite input") {
+        matrix::matrixd A(4, 3);
+        bool threw_zero_rank = false;
+        bool threw_large_rank = false;
+        bool threw_nan = false;
+        bool threw_infinity = false;
+        try {
+            (void)matrix::truncated_svd(A, 0);
+        } catch (const std::invalid_argument &) {
+            threw_zero_rank = true;
+        }
+        try {
+            (void)matrix::truncated_svd(A, 4);
+        } catch (const std::invalid_argument &) {
+            threw_large_rank = true;
+        }
+        A(0, 0) = std::numeric_limits<double>::quiet_NaN();
+        try {
+            (void)matrix::truncated_svd(A, 1);
+        } catch (const std::invalid_argument &) {
+            threw_nan = true;
+        }
+        A(0, 0) = std::numeric_limits<double>::infinity();
+        try {
+            (void)matrix::truncated_svd(A, 1);
+        } catch (const std::invalid_argument &) {
+            threw_infinity = true;
+        }
+        EXPECT_TRUE(threw_zero_rank);
+        EXPECT_TRUE(threw_large_rank);
+        EXPECT_TRUE(threw_nan);
+        EXPECT_TRUE(threw_infinity);
     }
     while (0)
         ;

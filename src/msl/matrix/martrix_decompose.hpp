@@ -16,11 +16,16 @@
 #ifndef MSL_MATRIX_DECOMPOSE_HPP
 #define MSL_MATRIX_DECOMPOSE_HPP
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <complex>
+#include <cstdint>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/SVD>
 #include <limits>
+#include <numeric>
+#include <random>
 #include <stdexcept>
 #include <vector>
 
@@ -38,6 +43,13 @@ struct truncated_svd_result {
     real_matrix_owned U;
     std::vector<double> singular_values;
     real_matrix_owned V;
+};
+
+struct truncated_svd_options {
+    size_t oversampling = 10;
+    size_t power_iterations = 2;
+    std::uint64_t seed = 0x5eedULL;
+    bool compute_right_vectors = true;
 };
 
 // Decompose real matrix A into U, S, V such that A = U * S * V^T
@@ -104,41 +116,166 @@ inline std::array<complex_matrix_owned, 3> svd(const complex_matrix_base &A) {
     return result;
 }
 
-/**
- * @brief Compute the leading singular triplets of a real matrix.
- *
- * The returned matrices satisfy `A ~= U * diag(singular_values) * V^T`.
- * `V` is empty when `compute_right_vectors` is false.
- */
-inline truncated_svd_result truncated_svd(const real_matrix_base &A,
-                                          size_t rank,
-                                          bool compute_right_vectors = true) {
+namespace detail {
+inline Eigen::MatrixXd thin_q(const Eigen::MatrixXd &matrix) {
+    Eigen::HouseholderQR<Eigen::MatrixXd> qr(matrix);
+    return qr.householderQ()
+           * Eigen::MatrixXd::Identity(matrix.rows(), matrix.cols());
+}
+
+inline std::vector<Eigen::Index>
+descending_singular_value_order(const Eigen::VectorXd &singular_values) {
+    std::vector<Eigen::Index> order(
+        static_cast<size_t>(singular_values.size()));
+    std::iota(order.begin(), order.end(), Eigen::Index{0});
+    std::stable_sort(order.begin(),
+                     order.end(),
+                     [&singular_values](Eigen::Index lhs, Eigen::Index rhs) {
+                         return singular_values(lhs) > singular_values(rhs);
+                     });
+    return order;
+}
+
+inline void validate_truncated_svd_input(const real_matrix_base &A,
+                                         size_t rank) {
     const size_t max_rank = std::min(A.rows(), A.cols());
     if (rank == 0 || rank > max_rank) {
         throw std::invalid_argument(
             "Truncated SVD: rank must be in [1, min(rows, cols)]");
     }
-
-    const auto eig_A = eigen_interface::as_eigen(A);
-    unsigned int options = Eigen::ComputeThinU;
-    if (compute_right_vectors) {
-        options |= Eigen::ComputeThinV;
+    if (!std::all_of(A.data(), A.data() + A.size(), [](double value) {
+            return std::isfinite(value);
+        })) {
+        throw std::invalid_argument(
+            "Truncated SVD: input must contain only finite values");
     }
-    Eigen::JacobiSVD<Eigen::MatrixXd> decomposition(eig_A, options);
+}
+
+inline truncated_svd_result
+exact_truncated_svd(const Eigen::Map<const Eigen::MatrixXd> &A,
+                    size_t rank,
+                    bool compute_right_vectors) {
+    unsigned int decomposition_options = Eigen::ComputeThinU;
+    if (compute_right_vectors) {
+        decomposition_options |= Eigen::ComputeThinV;
+    }
+    Eigen::JacobiSVD<Eigen::MatrixXd> decomposition(A, decomposition_options);
+    const auto order =
+        descending_singular_value_order(decomposition.singularValues());
+
+    const Eigen::Index result_rank = static_cast<Eigen::Index>(rank);
+    Eigen::MatrixXd selected_U(A.rows(), result_rank);
+    Eigen::MatrixXd selected_V;
+    if (compute_right_vectors) {
+        selected_V.resize(A.cols(), result_rank);
+    }
 
     truncated_svd_result result;
-    result.U = eigen_interface::from_eigen(
-        decomposition.matrixU().leftCols(static_cast<Eigen::Index>(rank)));
     result.singular_values.resize(rank);
     for (size_t i = 0; i < rank; ++i) {
-        result.singular_values[i] =
-            decomposition.singularValues()(static_cast<Eigen::Index>(i));
+        const auto source = order[i];
+        selected_U.col(static_cast<Eigen::Index>(i)) =
+            decomposition.matrixU().col(source);
+        result.singular_values[i] = decomposition.singularValues()(source);
+        if (compute_right_vectors) {
+            selected_V.col(static_cast<Eigen::Index>(i)) =
+                decomposition.matrixV().col(source);
+        }
     }
+    result.U = eigen_interface::from_eigen(selected_U);
     if (compute_right_vectors) {
-        result.V = eigen_interface::from_eigen(
-            decomposition.matrixV().leftCols(static_cast<Eigen::Index>(rank)));
+        result.V = eigen_interface::from_eigen(selected_V);
     }
     return result;
+}
+} // namespace detail
+
+/**
+ * @brief Compute the leading singular triplets using deterministic randomized
+ * SVD.
+ *
+ * The returned matrices satisfy `A ~= U * diag(singular_values) * V^T`.
+ * `V` is empty when `options.compute_right_vectors` is false.
+ */
+inline truncated_svd_result
+truncated_svd(const real_matrix_base &A,
+              size_t rank,
+              const truncated_svd_options &options) {
+    detail::validate_truncated_svd_input(A, rank);
+    const size_t max_rank = std::min(A.rows(), A.cols());
+    const size_t sample_size = options.oversampling >= max_rank - rank
+                                   ? max_rank
+                                   : rank + options.oversampling;
+    const auto eig_A = eigen_interface::as_eigen(A);
+
+    if (sample_size == max_rank) {
+        return detail::exact_truncated_svd(
+            eig_A, rank, options.compute_right_vectors);
+    }
+
+    const Eigen::Index samples = static_cast<Eigen::Index>(sample_size);
+    Eigen::MatrixXd omega(A.cols(), samples);
+    std::mt19937_64 generator(options.seed);
+    std::normal_distribution<double> distribution(0.0, 1.0);
+    for (Eigen::Index j = 0; j < omega.cols(); ++j) {
+        for (Eigen::Index i = 0; i < omega.rows(); ++i) {
+            omega(i, j) = distribution(generator);
+        }
+    }
+
+    Eigen::MatrixXd Q = detail::thin_q(eig_A * omega);
+    for (size_t iteration = 0; iteration < options.power_iterations;
+         ++iteration) {
+        Eigen::MatrixXd Z = detail::thin_q(eig_A.transpose() * Q);
+        Q = detail::thin_q(eig_A * Z);
+    }
+
+    Eigen::MatrixXd projected = Q.transpose() * eig_A;
+    unsigned int decomposition_options = Eigen::ComputeThinU;
+    if (options.compute_right_vectors) {
+        decomposition_options |= Eigen::ComputeThinV;
+    }
+    Eigen::JacobiSVD<Eigen::MatrixXd> decomposition(projected,
+                                                    decomposition_options);
+    const auto order =
+        detail::descending_singular_value_order(decomposition.singularValues());
+
+    const Eigen::Index result_rank = static_cast<Eigen::Index>(rank);
+    Eigen::MatrixXd selected_Ub(samples, result_rank);
+    Eigen::MatrixXd selected_V;
+    if (options.compute_right_vectors) {
+        selected_V.resize(A.cols(), result_rank);
+    }
+
+    truncated_svd_result result;
+    result.singular_values.resize(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        const auto source = order[i];
+        selected_Ub.col(static_cast<Eigen::Index>(i)) =
+            decomposition.matrixU().col(source);
+        result.singular_values[i] = decomposition.singularValues()(source);
+        if (options.compute_right_vectors) {
+            selected_V.col(static_cast<Eigen::Index>(i)) =
+                decomposition.matrixV().col(source);
+        }
+    }
+    result.U = eigen_interface::from_eigen(Q * selected_Ub);
+    if (options.compute_right_vectors) {
+        result.V = eigen_interface::from_eigen(selected_V);
+    }
+    return result;
+}
+
+/**
+ * @brief Compute the leading singular triplets with default randomized SVD
+ * options.
+ */
+inline truncated_svd_result truncated_svd(const real_matrix_base &A,
+                                          size_t rank,
+                                          bool compute_right_vectors = true) {
+    truncated_svd_options options;
+    options.compute_right_vectors = compute_right_vectors;
+    return truncated_svd(A, rank, options);
 }
 
 namespace detail {

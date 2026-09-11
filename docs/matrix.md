@@ -204,10 +204,24 @@ auto leading = msl::matrix::truncated_svd(A, 30, false);
 // leading.V is omitted because compute_right_vectors=false
 ```
 
-The returned singular values are descending. This interface limits the returned
-matrices to rank `r`; the current Eigen JacobiSVD backend still computes the
-thin decomposition internally, so callers should benchmark very large square
-problems in their deployment toolchain.
+`truncated_svd` uses deterministic randomized SVD. The default sample size is
+`min(rank + 10, min(m,n))`, with two reorthogonalized power iterations and a
+fixed seed. Only the projected small matrix is decomposed with JacobiSVD, and
+the returned singular values are explicitly ordered from largest to smallest.
+
+Advanced callers can override the defaults without changing the result type:
+
+```cpp
+msl::matrix::truncated_svd_options options;
+options.oversampling = 10;
+options.power_iterations = 2;
+options.seed = 0x5eedULL;
+options.compute_right_vectors = false;
+auto leading = msl::matrix::truncated_svd(A, 30, options);
+```
+
+When `rank + oversampling` covers `min(m,n)`, the implementation falls back to
+an exact thin SVD. Non-finite input and invalid ranks are rejected.
 
 ### Moore-Penrose Pseudoinverse
 
