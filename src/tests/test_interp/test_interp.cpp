@@ -196,6 +196,31 @@ int test_interp_state() {
         EXPECT_NEAR(natural_spline(x[i]), y[i], 1e-12);
     }
 
+    // Endpoint derivatives must stay inside the last valid interval and
+    // remain finite.
+    const std::vector<double> cubic_x{0.0, 1.0, 2.0, 3.0, 4.0};
+    std::vector<double> cubic_y(cubic_x.size());
+    for (size_t i = 0; i < cubic_x.size(); ++i) {
+        const double xi = cubic_x[i];
+        cubic_y[i] = 1.0 - 2.0 * xi + 0.5 * xi * xi + 0.25 * xi * xi * xi;
+    }
+    auto cubic_spline = interp::CubicSpline::from_data(cubic_x, cubic_y);
+    const double endpoints[2] = {cubic_x.front(), cubic_x.back()};
+    for (const double endpoint : endpoints) {
+        const double first = cubic_spline.derivative(endpoint);
+        const double second = cubic_spline.second_derivative(endpoint);
+        EXPECT_TRUE(std::isfinite(first));
+        EXPECT_TRUE(std::isfinite(second));
+        EXPECT_NEAR(first, -2.0 + endpoint + 0.75 * endpoint * endpoint, 1e-9);
+        EXPECT_NEAR(second, 1.0 + 1.5 * endpoint, 1e-9);
+    }
+
+    // Natural boundary condition: zero second derivative at both endpoints
+    auto natural_cubic = interp::CubicSpline::from_data(
+        cubic_x, cubic_y, interp::CubicSpline::BoundaryCondition::Natural);
+    EXPECT_NEAR(natural_cubic.second_derivative(cubic_x.front()), 0.0, 1e-9);
+    EXPECT_NEAR(natural_cubic.second_derivative(cubic_x.back()), 0.0, 1e-9);
+
     return 0;
 }
 

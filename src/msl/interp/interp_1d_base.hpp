@@ -278,14 +278,17 @@ protected:
                 return x_.size() - 2;
         }
 
-        // Binary search
+        // Binary search. The returned value is an interval index, so it must
+        // lie in [0, n-2] even for x == x_.back().
         auto it = std::lower_bound(x_.begin(), x_.end(), x);
         size_t idx = it - x_.begin();
 
-        if (idx == x_.size())
+        if (idx > 0 && x < x_[idx]) {
             --idx;
-        if (idx > 0 && x < x_[idx])
-            --idx;
+        }
+        if (idx > x_.size() - 2) {
+            idx = x_.size() - 2;
+        }
 
         return idx;
     }
