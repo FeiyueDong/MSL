@@ -225,6 +225,18 @@ void write_matrix(std::ofstream &file, const matrix::matrixd &mat) {
     }
 }
 
+// Complex matrices are written as interleaved real/imaginary columns so that
+// MATLAB `readmatrix` can reconstruct them without parsing issues.
+void write_complex_matrix(std::ofstream &file, const matrix::matrixc &mat) {
+    file << std::setprecision(17);
+    for (size_t i = 0; i < mat.rows(); ++i) {
+        for (size_t j = 0; j < mat.cols(); ++j) {
+            file << mat(i, j).real() << " " << mat(i, j).imag()
+                 << (j + 1 == mat.cols() ? '\n' : ' ');
+        }
+    }
+}
+
 int test_base_op() {
     std::cout << "MSL matrix unit tests\n";
 
@@ -1110,6 +1122,118 @@ int main() {
     write_matrix(svd_input_file, svd_input);
     std::ofstream svd_file(compare_dir / "matrix_svd_reconstruction.txt");
     write_matrix(svd_file, reconstructed);
+    std::ofstream svd_u_file(compare_dir / "matrix_svd_U.txt");
+    write_matrix(svd_u_file, svd[0]);
+    std::ofstream svd_s_file(compare_dir / "matrix_svd_S.txt");
+    write_matrix(svd_s_file, svd[1]);
+    std::ofstream svd_v_file(compare_dir / "matrix_svd_V.txt");
+    write_matrix(svd_v_file, svd[2]);
+
+    // LU comparison data: P * A = L * U (permutation written 1-based)
+    const matrix::matrixd lu_input(
+        3, 3, {0.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.0, 1.0});
+    const auto lu_result = matrix::lu(lu_input);
+    std::ofstream lu_a_file(compare_dir / "matrix_lu_A.txt");
+    write_matrix(lu_a_file, lu_input);
+    std::ofstream lu_l_file(compare_dir / "matrix_lu_L.txt");
+    write_matrix(lu_l_file, lu_result.L);
+    std::ofstream lu_u_file(compare_dir / "matrix_lu_U.txt");
+    write_matrix(lu_u_file, lu_result.U);
+    std::ofstream lu_p_file(compare_dir / "matrix_lu_permutation.txt");
+    for (size_t i = 0; i < lu_result.permutation.size(); ++i) {
+        lu_p_file << (lu_result.permutation[i] + 1)
+                  << (i + 1 == lu_result.permutation.size() ? '\n' : ' ');
+    }
+
+    // QR comparison data: tall and wide economy factorizations
+    const matrix::matrixd qr_tall(
+        4, 3, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 11.0, 12.0, 15.0});
+    const auto qr_tall_result = matrix::qr(qr_tall);
+    std::ofstream qr_tall_a(compare_dir / "matrix_qr_tall_A.txt");
+    write_matrix(qr_tall_a, qr_tall);
+    std::ofstream qr_tall_q(compare_dir / "matrix_qr_tall_Q.txt");
+    write_matrix(qr_tall_q, qr_tall_result[0]);
+    std::ofstream qr_tall_r(compare_dir / "matrix_qr_tall_R.txt");
+    write_matrix(qr_tall_r, qr_tall_result[1]);
+
+    const matrix::matrixd qr_wide(
+        3, 4, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 15.0});
+    const auto qr_wide_result = matrix::qr(qr_wide);
+    std::ofstream qr_wide_a(compare_dir / "matrix_qr_wide_A.txt");
+    write_matrix(qr_wide_a, qr_wide);
+    std::ofstream qr_wide_q(compare_dir / "matrix_qr_wide_Q.txt");
+    write_matrix(qr_wide_q, qr_wide_result[0]);
+    std::ofstream qr_wide_r(compare_dir / "matrix_qr_wide_R.txt");
+    write_matrix(qr_wide_r, qr_wide_result[1]);
+
+    // Eigenvalue comparison data (real matrix with one complex conjugate pair)
+    const matrix::matrixd eig_input(
+        3, 3, {0.8, -0.3, 0.0, 0.3, 0.8, 0.0, 0.0, 0.0, 1.5});
+    const auto eig_result = matrix::eig(eig_input);
+    std::ofstream eig_a_file(compare_dir / "matrix_eig_A.txt");
+    write_matrix(eig_a_file, eig_input);
+    std::ofstream eig_v_file(compare_dir / "matrix_eig_V.txt");
+    write_complex_matrix(eig_v_file, eig_result[0]);
+    std::ofstream eig_d_file(compare_dir / "matrix_eig_D.txt");
+    write_complex_matrix(eig_d_file, eig_result[1]);
+
+    // Generalized eigenvalue comparison data: A * V = 2 * V * D
+    const matrix::matrixd geig_b = matrix::matrixd::identity(3) * 2.0;
+    const auto geig_result = matrix::eig(eig_input, geig_b);
+    std::ofstream geig_a_file(compare_dir / "matrix_geig_A.txt");
+    write_matrix(geig_a_file, eig_input);
+    std::ofstream geig_b_file(compare_dir / "matrix_geig_B.txt");
+    write_matrix(geig_b_file, geig_b);
+    std::ofstream geig_v_file(compare_dir / "matrix_geig_V.txt");
+    write_complex_matrix(geig_v_file, geig_result[0]);
+    std::ofstream geig_d_file(compare_dir / "matrix_geig_D.txt");
+    write_complex_matrix(geig_d_file, geig_result[1]);
+
+    // Pseudoinverse comparison data (rank-deficient matrix)
+    const matrix::matrixd pinv_input(
+        4, 3, {1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 1.0, 1.0, 1.0, 0.0, 1.0, 2.0});
+    const auto pinv_result = matrix::pinv(pinv_input);
+    std::ofstream pinv_a_file(compare_dir / "matrix_pinv_A.txt");
+    write_matrix(pinv_a_file, pinv_input);
+    std::ofstream pinv_file(compare_dir / "matrix_pinv.txt");
+    write_matrix(pinv_file, pinv_result);
+
+    // Inverse and determinant comparison data
+    const matrix::matrixd inverse_input(
+        3, 3, {4.0, 7.0, 2.0, 3.0, 6.0, 1.0, 2.0, 5.0, 3.0});
+    const auto inverse_result = matrix::inverse(inverse_input);
+    const double determinant_result = matrix::determinant(inverse_input);
+    std::ofstream inverse_a_file(compare_dir / "matrix_inverse_A.txt");
+    write_matrix(inverse_a_file, inverse_input);
+    std::ofstream inverse_file(compare_dir / "matrix_inverse.txt");
+    write_matrix(inverse_file, inverse_result);
+    std::ofstream determinant_file(compare_dir / "matrix_determinant.txt");
+    determinant_file << std::setprecision(17) << determinant_result << "\n";
+
+    // Truncated SVD comparison data (rank-2 matrix)
+    matrix::matrixd tsvd_input(6, 4);
+    const double tsvd_u1[6] = {1.0, 0.5, 0.8, 0.3, 0.9, 0.2};
+    const double tsvd_v1[4] = {1.0, 2.0, 0.5, 1.5};
+    const double tsvd_u2[6] = {0.0, 1.0, 0.5, 1.0, 0.0, 0.5};
+    const double tsvd_v2[4] = {2.0, -1.0, 1.0, 0.5};
+    for (size_t i = 0; i < tsvd_input.rows(); ++i) {
+        for (size_t j = 0; j < tsvd_input.cols(); ++j) {
+            tsvd_input(i, j) =
+                tsvd_u1[i] * tsvd_v1[j] + tsvd_u2[i] * tsvd_v2[j];
+        }
+    }
+    const auto tsvd_result = matrix::truncated_svd(tsvd_input, 2);
+    std::ofstream tsvd_a_file(compare_dir / "matrix_tsvd_A.txt");
+    write_matrix(tsvd_a_file, tsvd_input);
+    std::ofstream tsvd_u_file(compare_dir / "matrix_tsvd_U.txt");
+    write_matrix(tsvd_u_file, tsvd_result.U);
+    std::ofstream tsvd_v_file(compare_dir / "matrix_tsvd_V.txt");
+    write_matrix(tsvd_v_file, tsvd_result.V);
+    std::ofstream tsvd_sv_file(compare_dir / "matrix_tsvd_singular_values.txt");
+    for (size_t i = 0; i < tsvd_result.singular_values.size(); ++i) {
+        tsvd_sv_file << std::setprecision(17) << tsvd_result.singular_values[i]
+                     << "\n";
+    }
 
     std::cout << "Test results: base operations = " << res1
               << ", decompositions = " << res2 << "\n";
