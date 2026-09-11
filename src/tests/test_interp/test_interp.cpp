@@ -96,22 +96,65 @@ int test_interp() {
         project_root() / "test_result" / "interp" / "matlab_compare";
     std::filesystem::create_directories(compare_dir);
 
-    auto linear = interp::interp1_linear(x, y, xq);
-    auto cubic = interp::interp1_cubic(x, y, xq);
-    auto pchip = interp::interp1_pchip(x, y, xq);
-    auto akima = interp::interp1_akima(x, y, xq);
-    std::ofstream interp_file(compare_dir / "interp_results.txt");
-    interp_file << std::setprecision(17);
-    for (size_t i = 0; i < xq.size(); ++i) {
-        interp_file << xq[i] << " " << linear[i] << " " << cubic[i] << " "
-                    << pchip[i] << " " << akima[i] << "\n";
+    // Nonlinear, non-uniform dataset that distinguishes the methods
+    const std::vector<double> reference_x{0.0, 0.7, 1.8, 3.0, 5.0};
+    const std::vector<double> reference_y{0.0, 1.2, 0.8, 2.5, 1.0};
+    for (size_t i = 0; i < reference_x.size(); ++i) {
+        const std::vector<double> point{reference_x[i]};
+        EXPECT_NEAR(interp::interp1_linear(reference_x, reference_y, point)[0],
+                    reference_y[i],
+                    1e-12);
+        EXPECT_NEAR(interp::interp1_cubic(reference_x, reference_y, point)[0],
+                    reference_y[i],
+                    1e-12);
+        EXPECT_NEAR(interp::interp1_pchip(reference_x, reference_y, point)[0],
+                    reference_y[i],
+                    1e-12);
+        EXPECT_NEAR(interp::interp1_akima(reference_x, reference_y, point)[0],
+                    reference_y[i],
+                    1e-12);
+        EXPECT_NEAR(
+            interp::interp1_polynomial(reference_x, reference_y, point)[0],
+            reference_y[i],
+            1e-10);
     }
 
-    auto nearest = interp::interp1_near(x, y, near_xq);
+    std::vector<double> dense_xq(101);
+    for (size_t i = 0; i < dense_xq.size(); ++i) {
+        dense_xq[i] = 5.0 * static_cast<double>(i)
+                      / static_cast<double>(dense_xq.size() - 1);
+    }
+    const auto dense_linear =
+        interp::interp1_linear(reference_x, reference_y, dense_xq);
+    const auto dense_cubic =
+        interp::interp1_cubic(reference_x, reference_y, dense_xq);
+    const auto dense_pchip =
+        interp::interp1_pchip(reference_x, reference_y, dense_xq);
+    const auto dense_akima =
+        interp::interp1_akima(reference_x, reference_y, dense_xq);
+    const auto dense_polynomial =
+        interp::interp1_polynomial(reference_x, reference_y, dense_xq);
+    const auto dense_nearest =
+        interp::interp1_near(reference_x, reference_y, dense_xq);
+
+    std::ofstream data_file(compare_dir / "interp_data.txt");
+    data_file << std::setprecision(17);
+    for (size_t i = 0; i < reference_x.size(); ++i) {
+        data_file << reference_x[i] << " " << reference_y[i] << "\n";
+    }
+
+    std::ofstream interp_file(compare_dir / "interp_results.txt");
+    interp_file << std::setprecision(17);
+    for (size_t i = 0; i < dense_xq.size(); ++i) {
+        interp_file << dense_xq[i] << " " << dense_linear[i] << " "
+                    << dense_cubic[i] << " " << dense_pchip[i] << " "
+                    << dense_akima[i] << " " << dense_polynomial[i] << "\n";
+    }
+
     std::ofstream nearest_file(compare_dir / "interp_nearest.txt");
     nearest_file << std::setprecision(17);
-    for (size_t i = 0; i < near_xq.size(); ++i) {
-        nearest_file << near_xq[i] << " " << nearest[i] << "\n";
+    for (size_t i = 0; i < dense_xq.size(); ++i) {
+        nearest_file << dense_xq[i] << " " << dense_nearest[i] << "\n";
     }
 
     return 0;
