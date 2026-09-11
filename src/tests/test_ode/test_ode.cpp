@@ -8,50 +8,9 @@
 #include <vector>
 
 #include "ode.hpp"
+#include "test_utils.hpp"
 
 using namespace msl;
-
-static int g_failures = 0;
-static int g_total = 0;
-
-#define EXPECT_TRUE(cond)                                                      \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(cond)) {                                                         \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #cond << "\n";                                        \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_EQ(a, b) EXPECT_TRUE((a) == (b))
-
-#define EXPECT_NEAR(a, b, eps)                                                 \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (std::fabs((a) - (b)) > (eps)) {                                    \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " ~= " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ")\n";                                         \
-        }                                                                      \
-    } while (0)
-
-std::filesystem::path project_root() {
-    auto path = std::filesystem::current_path();
-    while (!path.empty()) {
-        if (std::filesystem::exists(path / "msl")
-            && std::filesystem::exists(path / "tests")) {
-            return path;
-        }
-        auto parent = path.parent_path();
-        if (parent == path) {
-            break;
-        }
-        path = parent;
-    }
-    return std::filesystem::current_path();
-}
 
 int test_ode() {
     auto exponential = [](double, const ode::state &y) {
@@ -163,9 +122,7 @@ int test_ode() {
     }
     EXPECT_TRUE(eval_threw);
 
-    auto compare_dir =
-        project_root() / "test_result" / "ode" / "matlab_compare";
-    std::filesystem::create_directories(compare_dir);
+    auto compare_dir = msl::test::result_dir("ode");
     std::ofstream exp_file(compare_dir / "ode_exp_eval.txt");
     exp_file << std::setprecision(17);
     for (size_t i = 0; i < t_eval.size(); ++i) {
@@ -183,9 +140,7 @@ int test_ode() {
                  << osc_eval.y[i][1] << "\n";
     }
 
-    std::cout << "Total checks: " << g_total << ", failures: " << g_failures
-              << "\n";
-    return g_failures == 0 ? 0 : 1;
+    return msl::test::summary();
 }
 
 int main() { return test_ode(); }

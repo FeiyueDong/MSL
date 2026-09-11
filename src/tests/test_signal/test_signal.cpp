@@ -11,62 +11,9 @@
 
 #include "matrix.hpp"
 #include "signal.hpp"
+#include "test_utils.hpp"
 
 using namespace msl;
-
-static int g_failures = 0;
-static int g_total = 0;
-
-#define EXPECT_TRUE(cond)                                                      \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(cond)) {                                                         \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #cond << "\n";                                        \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_EQ(a, b) EXPECT_TRUE((a) == (b))
-
-#define EXPECT_NEAR(a, b, eps)                                                 \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (std::fabs((a) - (b)) > (eps)) {                                    \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " ~= " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ")\n";                                         \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_CPLX_NEAR(a, b, eps)                                            \
-    do {                                                                       \
-        const auto actual = (a);                                               \
-        const auto expected = (b);                                             \
-        EXPECT_NEAR(actual.real(), expected.real(), eps);                      \
-        EXPECT_NEAR(actual.imag(), expected.imag(), eps);                      \
-    } while (0)
-
-std::filesystem::path project_root() {
-    auto path = std::filesystem::current_path();
-    while (!path.empty()) {
-        if (std::filesystem::exists(path / "src" / "msl")
-            && std::filesystem::exists(path / "src" / "tests")) {
-            return path;
-        }
-        if (std::filesystem::exists(path / "msl")
-            && std::filesystem::exists(path / "tests")) {
-            return path;
-        }
-        auto parent = path.parent_path();
-        if (parent == path) {
-            break;
-        }
-        path = parent;
-    }
-    return std::filesystem::current_path();
-}
 
 static std::complex<double>
 frequency_response(const signal::FilterCoefficients &coeffs, double f) {
@@ -546,9 +493,7 @@ int main() {
                  + test_welch_and_covariance() + test_power_spectrum()
                  + test_windows_and_filter();
 
-    auto compare_dir =
-        project_root() / "test_result" / "signal" / "matlab_compare";
-    std::filesystem::create_directories(compare_dir);
+    auto compare_dir = msl::test::result_dir("signal");
 
     std::vector<double> x{1.0, 2.0, 3.0, 4.0};
     auto X = signal::fft(x);
@@ -776,7 +721,5 @@ int main() {
                      << " " << detrend_linear_removed[n] << "\n";
     }
 
-    std::cout << "Total checks: " << g_total << ", failures: " << g_failures
-              << "\n";
-    return result + (g_failures == 0 ? 0 : 1);
+    return result + msl::test::summary();
 }

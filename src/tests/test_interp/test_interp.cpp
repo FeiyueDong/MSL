@@ -7,34 +7,9 @@
 #include <vector>
 
 #include "interp.hpp"
+#include "test_utils.hpp"
 
 using namespace msl;
-
-static int g_failures = 0;
-static int g_total = 0;
-
-#define EXPECT_TRUE(cond)                                                      \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(cond)) {                                                         \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #cond << "\n";                                        \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_EQ(a, b) EXPECT_TRUE((a) == (b))
-
-#define EXPECT_NEAR(a, b, eps)                                                 \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (std::fabs((a) - (b)) > (eps)) {                                    \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " ~= " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ")\n";                                         \
-        }                                                                      \
-    } while (0)
 
 static void expect_vector_near(const std::vector<double> &actual,
                                const std::vector<double> &expected,
@@ -43,22 +18,6 @@ static void expect_vector_near(const std::vector<double> &actual,
     for (size_t i = 0; i < actual.size() && i < expected.size(); ++i) {
         EXPECT_NEAR(actual[i], expected[i], eps);
     }
-}
-
-std::filesystem::path project_root() {
-    auto path = std::filesystem::current_path();
-    while (!path.empty()) {
-        if (std::filesystem::exists(path / "msl")
-            && std::filesystem::exists(path / "tests")) {
-            return path;
-        }
-        auto parent = path.parent_path();
-        if (parent == path) {
-            break;
-        }
-        path = parent;
-    }
-    return std::filesystem::current_path();
 }
 
 int test_interp() {
@@ -92,9 +51,7 @@ int test_interp() {
     }
     EXPECT_TRUE(threw);
 
-    auto compare_dir =
-        project_root() / "test_result" / "interp" / "matlab_compare";
-    std::filesystem::create_directories(compare_dir);
+    auto compare_dir = msl::test::result_dir("interp");
 
     // Nonlinear, non-uniform dataset that distinguishes the methods
     const std::vector<double> reference_x{0.0, 0.7, 1.8, 3.0, 5.0};
@@ -244,7 +201,5 @@ int test_interp_state() {
 int main() {
     test_interp();
     test_interp_state();
-    std::cout << "Total checks: " << g_total << ", failures: " << g_failures
-              << "\n";
-    return g_failures == 0 ? 0 : 1;
+    return msl::test::summary();
 }

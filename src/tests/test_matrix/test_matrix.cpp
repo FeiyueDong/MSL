@@ -9,79 +9,11 @@
 #include <vector>
 
 #include "matrix.hpp"
+#include "test_utils.hpp"
 
 using namespace msl;
 
-// ---------- 简易断言框架 ----------
-static int g_failures = 0;
-static int g_total = 0;
-
-#define TEST_CASE(name)                                                        \
-    std::cout << "=== Test: " << name << " ===\n";                             \
-    do
-
-#define EXPECT_TRUE(cond)                                                      \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(cond)) {                                                         \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #cond << "\n";                                        \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_EQ(a, b)                                                        \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!((a) == (b))) {                                                   \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " == " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ")\n";                                         \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_NEAR(a, b, eps)                                                 \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(std::fabs((double)(a) - (double)(b)) <= (eps))) {                \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " ~= " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ", eps=" << (eps) << ")\n";                    \
-        }                                                                      \
-    } while (0)
-
-// For complex near
-static void expect_complex_near(const std::complex<double> &a,
-                                const std::complex<double> &b,
-                                double eps,
-                                const char *file,
-                                int line) {
-    ++g_total;
-    if (std::abs(a.real() - b.real()) > eps
-        || std::abs(a.imag() - b.imag()) > eps) {
-        ++g_failures;
-        std::cerr << "[FAIL] " << file << ":" << line
-                  << " - complex not near (got: " << a << " vs " << b
-                  << ", eps=" << eps << ")\n";
-    }
-}
-#define EXPECT_CPLX_NEAR(a, b, eps)                                            \
-    expect_complex_near((a), (b), (eps), __FILE__, __LINE__)
-
 // ---------- 辅助函数 ----------
-static bool approx_equal_double_vector(const std::vector<double> &a,
-                                       const std::vector<double> &b,
-                                       double eps = 1e-12) {
-    if (a.size() != b.size())
-        return false;
-    for (size_t i = 0; i < a.size(); ++i)
-        if (std::fabs(a[i] - b[i]) > eps)
-            return false;
-    return true;
-}
-
 static bool matrix_near(const matrix::real_matrix_base &actual,
                         const matrix::real_matrix_base &expected,
                         double tolerance) {
@@ -198,22 +130,6 @@ diagonal_test_matrix(size_t rows, size_t cols, size_t numerical_rank) {
         result(i, i) = 0.1 / static_cast<double>(i + 1);
     }
     return result;
-}
-
-std::filesystem::path project_root() {
-    auto path = std::filesystem::current_path();
-    while (!path.empty()) {
-        if (std::filesystem::exists(path / "msl")
-            && std::filesystem::exists(path / "tests")) {
-            return path;
-        }
-        auto parent = path.parent_path();
-        if (parent == path) {
-            break;
-        }
-        path = parent;
-    }
-    return std::filesystem::current_path();
 }
 
 void write_matrix(std::ofstream &file, const matrix::matrixd &mat) {
@@ -608,15 +524,7 @@ int test_base_op() {
         ;
 
     // 总结
-    std::cout << "Total checks: " << g_total << ", failures: " << g_failures
-              << "\n";
-    if (g_failures == 0) {
-        std::cout << "All tests passed\n";
-        return 0;
-    } else {
-        std::cerr << "Some tests failed\n";
-        return 1;
-    }
+    return 0;
 }
 
 // ---------- decomposition tests (SVD, Eigen, etc.) ----------
@@ -1068,25 +976,15 @@ int test_decompositions() {
         ;
 
     // 总结
-    std::cout << "Total decomposition checks: " << g_total
-              << ", failures: " << g_failures << "\n";
-    if (g_failures == 0) {
-        std::cout << "All decomposition tests passed\n";
-        return 0;
-    } else {
-        std::cerr << "Some decomposition tests failed\n";
-        return 1;
-    }
+    return 0;
 }
 
 // ---------- 主程序 ----------
 int main() {
-    int res1 = test_base_op();
-    int res2 = test_decompositions();
+    test_base_op();
+    test_decompositions();
 
-    auto compare_dir =
-        project_root() / "test_result" / "matrix" / "matlab_compare";
-    std::filesystem::create_directories(compare_dir);
+    auto compare_dir = msl::test::result_dir("matrix");
 
     matrix::matrixd A(2, 3);
     matrix::matrixd B(3, 2);
@@ -1235,8 +1133,5 @@ int main() {
                      << "\n";
     }
 
-    std::cout << "Test results: base operations = " << res1
-              << ", decompositions = " << res2 << "\n";
-
-    return res1 + res2;
+    return msl::test::summary();
 }

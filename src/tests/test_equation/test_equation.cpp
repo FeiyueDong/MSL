@@ -6,50 +6,9 @@
 #include <stdexcept>
 
 #include "equation.hpp"
+#include "test_utils.hpp"
 
 using namespace msl;
-
-static int g_failures = 0;
-static int g_total = 0;
-
-#define EXPECT_TRUE(cond)                                                      \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (!(cond)) {                                                         \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #cond << "\n";                                        \
-        }                                                                      \
-    } while (0)
-
-#define EXPECT_EQ(a, b) EXPECT_TRUE((a) == (b))
-
-#define EXPECT_NEAR(a, b, eps)                                                 \
-    do {                                                                       \
-        ++g_total;                                                             \
-        if (std::fabs((a) - (b)) > (eps)) {                                    \
-            ++g_failures;                                                      \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ << " - "     \
-                      << #a << " ~= " << #b << " (got: " << (a) << " vs "      \
-                      << (b) << ")\n";                                         \
-        }                                                                      \
-    } while (0)
-
-std::filesystem::path project_root() {
-    auto path = std::filesystem::current_path();
-    while (!path.empty()) {
-        if (std::filesystem::exists(path / "msl")
-            && std::filesystem::exists(path / "tests")) {
-            return path;
-        }
-        auto parent = path.parent_path();
-        if (parent == path) {
-            break;
-        }
-        path = parent;
-    }
-    return std::filesystem::current_path();
-}
 
 int test_equation() {
     auto square_minus_two = [](double x) { return x * x - 2.0; };
@@ -194,9 +153,7 @@ int test_equation() {
     }
     EXPECT_TRUE(threw);
 
-    auto compare_dir =
-        project_root() / "test_result" / "equation" / "matlab_compare";
-    std::filesystem::create_directories(compare_dir);
+    auto compare_dir = msl::test::result_dir("equation");
     std::ofstream roots_file(compare_dir / "equation_roots.txt");
     roots_file << std::setprecision(17);
     roots_file << bisection_result.root << " " << bisection_result.residual
@@ -212,9 +169,7 @@ int test_equation() {
     roots_file << fixed_point.root << " " << fixed_point.residual << " "
                << fixed_point.iterations << "\n";
 
-    std::cout << "Total checks: " << g_total << ", failures: " << g_failures
-              << "\n";
-    return g_failures == 0 ? 0 : 1;
+    return msl::test::summary();
 }
 
 int main() { return test_equation(); }
