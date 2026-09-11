@@ -52,6 +52,10 @@ static int g_total = 0;
 std::filesystem::path project_root() {
     auto path = std::filesystem::current_path();
     while (!path.empty()) {
+        if (std::filesystem::exists(path / "src" / "msl")
+            && std::filesystem::exists(path / "src" / "tests")) {
+            return path;
+        }
         if (std::filesystem::exists(path / "msl")
             && std::filesystem::exists(path / "tests")) {
             return path;
@@ -92,6 +96,34 @@ static double band_center_frequency(double low, double high) {
     const double w1 = 2.0 * std::tan(std::numbers::pi * low / 2.0);
     const double w2 = 2.0 * std::tan(std::numbers::pi * high / 2.0);
     return 2.0 / std::numbers::pi * std::atan(std::sqrt(w1 * w2) / 2.0);
+}
+
+// Check that all poles of the digital transfer function lie inside the unit
+// circle, using the eigenvalues of the denominator companion matrix.
+static bool filter_is_stable(const signal::FilterCoefficients &coeffs) {
+    if (coeffs.a.empty()) {
+        return false;
+    }
+    const size_t order = coeffs.a.size() - 1;
+    if (order == 0) {
+        return true;
+    }
+
+    matrix::matrixd companion(order, order, 0.0);
+    for (size_t j = 0; j < order; ++j) {
+        companion(0, j) = -coeffs.a[j + 1] / coeffs.a[0];
+    }
+    for (size_t i = 1; i < order; ++i) {
+        companion(i, i - 1) = 1.0;
+    }
+
+    const auto eigenvalues = matrix::eig(companion)[1];
+    for (size_t i = 0; i < order; ++i) {
+        if (std::abs(eigenvalues(i, i)) >= 1.0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 int test_fft() {
@@ -269,6 +301,7 @@ int test_butterworth_bandpass() {
         EXPECT_NEAR(magnitude_response(coeffs, band.high), cutoff_gain, 1e-9);
         EXPECT_TRUE(magnitude_response(coeffs, 0.0) < 1e-12);
         EXPECT_TRUE(magnitude_response(coeffs, 1.0) < 1e-12);
+        EXPECT_TRUE(filter_is_stable(coeffs));
     }
 
     return 0;
@@ -292,7 +325,36 @@ int test_butterworth_bandstop() {
         EXPECT_NEAR(magnitude_response(coeffs, 1.0), 1.0, 1e-9);
         EXPECT_NEAR(magnitude_response(coeffs, band.low), cutoff_gain, 1e-9);
         EXPECT_NEAR(magnitude_response(coeffs, band.high), cutoff_gain, 1e-9);
+        EXPECT_TRUE(filter_is_stable(coeffs));
     }
+
+    return 0;
+}
+
+int test_butterworth_lowpass_highpass() {
+    const double cutoff_gain = 1.0 / std::sqrt(2.0);
+    const double cutoffs[] = {0.004, 0.1, 0.3, 0.8};
+
+    for (const double fc : cutoffs) {
+        const auto lowpass = signal::butterworth_lowpass_design(2, fc);
+        EXPECT_NEAR(magnitude_response(lowpass, 0.0), 1.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(lowpass, fc), cutoff_gain, 1e-9);
+        EXPECT_TRUE(filter_is_stable(lowpass));
+
+        const auto highpass = signal::butterworth_highpass_design(2, fc);
+        EXPECT_NEAR(magnitude_response(highpass, 1.0), 1.0, 1e-9);
+        EXPECT_NEAR(magnitude_response(highpass, fc), cutoff_gain, 1e-9);
+        EXPECT_TRUE(filter_is_stable(highpass));
+    }
+
+    // Odd and higher orders
+    const auto order3 = signal::butterworth_lowpass_design(3, 0.25);
+    EXPECT_NEAR(magnitude_response(order3, 0.25), cutoff_gain, 1e-9);
+    EXPECT_TRUE(filter_is_stable(order3));
+
+    const auto order4 = signal::butterworth_highpass_design(4, 0.25);
+    EXPECT_NEAR(magnitude_response(order4, 0.25), cutoff_gain, 1e-9);
+    EXPECT_TRUE(filter_is_stable(order4));
 
     return 0;
 }
@@ -399,6 +461,7 @@ int test_windows_and_filter() {
 
 int main() {
     int result = test_fft() + test_fft_matrix_roundtrip()
+                 + test_butterworth_lowpass_highpass()
                  + test_butterworth_bandpass() + test_butterworth_bandstop()
                  + test_welch_and_covariance() + test_windows_and_filter();
 
@@ -431,6 +494,94 @@ int main() {
     filter_file << std::setprecision(17);
     for (size_t i = 0; i < filtered.size(); ++i) {
         filter_file << x[i] << " " << filtered[i] << "\n";
+    }
+
+    // ---- Butterworth comparison data for MATLAB validation ----
+    struct ButterCase {
+        int type; // 1 = lowpass, 2 = highpass, 3 = bandpass, 4 = bandstop
+        int order;
+        double low;
+        double high;
+    };
+    const std::vector<ButterCase> butter_cases{{1, 2, 0.3, 0.0},
+                                               {2, 2, 0.3, 0.0},
+                                               {3, 2, 0.1, 0.3},
+                                               {4, 2, 0.1, 0.3},
+                                               {3, 2, 0.004, 0.8}};
+
+    std::ofstream cases_file(compare_dir / "butterworth_cases.txt");
+    cases_file << std::setprecision(17);
+    for (const auto &c : butter_cases) {
+        cases_file << c.type << " " << c.order << " " << c.low << " " << c.high
+                   << "\n";
+    }
+
+    std::vector<signal::FilterCoefficients> butter_coeffs;
+    butter_coeffs.reserve(butter_cases.size());
+    for (const auto &c : butter_cases) {
+        switch (c.type) {
+            case 1:
+                butter_coeffs.push_back(
+                    signal::butterworth_lowpass_design(c.order, c.low));
+                break;
+            case 2:
+                butter_coeffs.push_back(
+                    signal::butterworth_highpass_design(c.order, c.low));
+                break;
+            case 3:
+                butter_coeffs.push_back(signal::butterworth_bandpass_design(
+                    c.order, c.low, c.high));
+                break;
+            default:
+                butter_coeffs.push_back(signal::butterworth_bandstop_design(
+                    c.order, c.low, c.high));
+                break;
+        }
+    }
+
+    constexpr size_t response_points = 101;
+    std::ofstream response_file(compare_dir / "butterworth_response.txt");
+    response_file << std::setprecision(17);
+    for (size_t i = 0; i < response_points; ++i) {
+        const double f =
+            static_cast<double>(i) / static_cast<double>(response_points - 1);
+        response_file << f;
+        for (const auto &c : butter_coeffs) {
+            response_file << " " << magnitude_response(c, f);
+        }
+        response_file << "\n";
+    }
+
+    constexpr size_t butter_signal_length = 64;
+    std::vector<double> butter_input(butter_signal_length);
+    for (size_t i = 0; i < butter_signal_length; ++i) {
+        const double t = static_cast<double>(i);
+        butter_input[i] = std::sin(2.0 * std::numbers::pi * 0.05 * t)
+                          + 0.5 * std::sin(2.0 * std::numbers::pi * 0.35 * t)
+                          + 0.01 * t;
+    }
+
+    std::vector<std::vector<double>> butter_filtered;
+    std::vector<std::vector<double>> butter_filtfilt;
+    for (const auto &c : butter_coeffs) {
+        butter_filtered.push_back(signal::filter(butter_input, c));
+        butter_filtfilt.push_back(signal::filtfilt(butter_input, c));
+    }
+
+    std::ofstream butter_filter_file(compare_dir / "butterworth_filter.txt");
+    butter_filter_file << std::setprecision(17);
+    std::ofstream butter_filtfilt_file(compare_dir
+                                       / "butterworth_filtfilt.txt");
+    butter_filtfilt_file << std::setprecision(17);
+    for (size_t i = 0; i < butter_signal_length; ++i) {
+        butter_filter_file << butter_input[i];
+        butter_filtfilt_file << butter_input[i];
+        for (size_t k = 0; k < butter_coeffs.size(); ++k) {
+            butter_filter_file << " " << butter_filtered[k][i];
+            butter_filtfilt_file << " " << butter_filtfilt[k][i];
+        }
+        butter_filter_file << "\n";
+        butter_filtfilt_file << "\n";
     }
 
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures
