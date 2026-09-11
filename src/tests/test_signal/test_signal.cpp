@@ -130,6 +130,97 @@ int test_fft() {
     return 0;
 }
 
+int test_fft_matrix_roundtrip() {
+    matrix::matrixd real_rows(3, 4);
+    for (size_t i = 0; i < real_rows.rows(); ++i) {
+        for (size_t j = 0; j < real_rows.cols(); ++j) {
+            real_rows(i, j) = 1.0 + 0.5 * static_cast<double>(i)
+                              + 0.25 * static_cast<double>(j);
+        }
+    }
+
+    // Real row round-trip
+    const auto real_spectrum = signal::fft_rows(real_rows);
+    const auto real_restored = signal::ifft_rows_real(real_spectrum);
+    EXPECT_EQ(real_restored.rows(), real_rows.rows());
+    EXPECT_EQ(real_restored.cols(), real_rows.cols());
+    for (size_t i = 0; i < real_rows.rows(); ++i) {
+        for (size_t j = 0; j < real_rows.cols(); ++j) {
+            EXPECT_NEAR(real_restored(i, j), real_rows(i, j), 1e-12);
+        }
+    }
+
+    // Real row round-trip with zero padding
+    const auto padded_spectrum = signal::fft_rows(real_rows, 8);
+    const auto padded_restored = signal::ifft_rows_real(padded_spectrum, 8);
+    EXPECT_EQ(padded_restored.rows(), real_rows.rows());
+    EXPECT_EQ(padded_restored.cols(), 8);
+    for (size_t i = 0; i < real_rows.rows(); ++i) {
+        for (size_t j = 0; j < real_rows.cols(); ++j) {
+            EXPECT_NEAR(padded_restored(i, j), real_rows(i, j), 1e-12);
+        }
+        for (size_t j = real_rows.cols(); j < 8; ++j) {
+            EXPECT_NEAR(padded_restored(i, j), 0.0, 1e-12);
+        }
+    }
+
+    // Complex row round-trip
+    matrix::matrixc complex_rows(2, 3);
+    for (size_t i = 0; i < complex_rows.rows(); ++i) {
+        for (size_t j = 0; j < complex_rows.cols(); ++j) {
+            complex_rows(i, j) =
+                std::complex<double>(0.5 * static_cast<double>(i + 1),
+                                     -0.25 * static_cast<double>(j + 1));
+        }
+    }
+    const auto complex_spectrum = signal::fft_rows(complex_rows);
+    const auto complex_restored = signal::ifft_rows(complex_spectrum);
+    EXPECT_EQ(complex_restored.rows(), complex_rows.rows());
+    EXPECT_EQ(complex_restored.cols(), complex_rows.cols());
+    for (size_t i = 0; i < complex_rows.rows(); ++i) {
+        for (size_t j = 0; j < complex_rows.cols(); ++j) {
+            EXPECT_CPLX_NEAR(complex_restored(i, j), complex_rows(i, j), 1e-12);
+        }
+    }
+
+    // Complex row round-trip with zero padding
+    const auto complex_padded_spectrum = signal::fft_rows(complex_rows, 5);
+    const auto complex_padded_restored =
+        signal::ifft_rows(complex_padded_spectrum, 5);
+    EXPECT_EQ(complex_padded_restored.rows(), complex_rows.rows());
+    EXPECT_EQ(complex_padded_restored.cols(), 5);
+    for (size_t i = 0; i < complex_rows.rows(); ++i) {
+        for (size_t j = 0; j < complex_rows.cols(); ++j) {
+            EXPECT_CPLX_NEAR(
+                complex_padded_restored(i, j), complex_rows(i, j), 1e-12);
+        }
+        for (size_t j = complex_rows.cols(); j < 5; ++j) {
+            EXPECT_CPLX_NEAR(complex_padded_restored(i, j),
+                             std::complex<double>(0.0, 0.0),
+                             1e-12);
+        }
+    }
+
+    // Column round-trip for real and complex inputs
+    const auto real_column_restored =
+        signal::ifft_columns_real(signal::fft_columns(real_rows));
+    for (size_t i = 0; i < real_rows.rows(); ++i) {
+        for (size_t j = 0; j < real_rows.cols(); ++j) {
+            EXPECT_NEAR(real_column_restored(i, j), real_rows(i, j), 1e-12);
+        }
+    }
+    const auto complex_column_restored =
+        signal::ifft_columns(signal::fft_columns(complex_rows));
+    for (size_t i = 0; i < complex_rows.rows(); ++i) {
+        for (size_t j = 0; j < complex_rows.cols(); ++j) {
+            EXPECT_CPLX_NEAR(
+                complex_column_restored(i, j), complex_rows(i, j), 1e-12);
+        }
+    }
+
+    return 0;
+}
+
 int test_welch_and_covariance() {
     const std::vector<double> x{1.0, 2.0, 0.0, -1.0, 3.0, 2.0};
     const std::vector<double> y{0.0, 1.0, 2.0, 1.0, -1.0, 2.0};
@@ -231,8 +322,8 @@ int test_windows_and_filter() {
 }
 
 int main() {
-    int result =
-        test_fft() + test_welch_and_covariance() + test_windows_and_filter();
+    int result = test_fft() + test_fft_matrix_roundtrip()
+                 + test_welch_and_covariance() + test_windows_and_filter();
 
     auto compare_dir =
         project_root() / "test_result" / "signal" / "matlab_compare";

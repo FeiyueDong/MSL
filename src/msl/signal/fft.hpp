@@ -424,14 +424,17 @@ inline matrix::matrixc ifft_rows(const matrix::complex_matrix_base &input,
     matrix::matrixc output(n_rows, nfft);
 
     Eigen::FFT<double> fft_engine;
+    std::vector<std::complex<double>> row_ifft(nfft);
 
     for (size_t i = 0; i < n_rows; ++i) {
         std::vector<std::complex<double>> row_vec(input.cols());
         for (size_t j = 0; j < n_cols; ++j) {
             row_vec[j] = input(i, j);
         }
-        auto row_ifft = output.get_row(i);
         fft_engine.inv(row_ifft.data(), row_vec.data(), nfft);
+        for (size_t j = 0; j < nfft; ++j) {
+            output(i, j) = row_ifft[j];
+        }
     }
 
     return output;
@@ -460,14 +463,17 @@ inline matrix::matrixd ifft_rows_real(const matrix::complex_matrix_base &input,
     matrix::matrixd output(n_rows, nfft);
 
     Eigen::FFT<double> fft_engine;
+    std::vector<double> row_ifft(nfft);
 
     for (size_t i = 0; i < n_rows; ++i) {
         std::vector<std::complex<double>> row_vec(input.cols());
         for (size_t j = 0; j < n_cols; ++j) {
             row_vec[j] = input(i, j);
         }
-        auto row_ifft = output.get_row(i);
         fft_engine.inv(row_ifft.data(), row_vec.data(), nfft);
+        for (size_t j = 0; j < nfft; ++j) {
+            output(i, j) = row_ifft[j];
+        }
     }
 
     return output;
