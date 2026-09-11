@@ -207,6 +207,60 @@ int test_integral() {
                         << ct_nonuniform[i] << "\n";
     }
 
+    // ---- Cumulative Simpson against analytic primitives ----
+    const std::vector<double> cs_x{0.0, 1.0, 2.0, 3.0, 4.0};
+    const std::vector<double> cs_y{0.0, 1.0, 4.0, 9.0, 16.0};
+    const auto cs_uniform = integral::cumsimpson(cs_y, 1.0);
+    std::ofstream cs_uniform_file(compare_dir
+                                  / "integral_cumsimpson_uniform.txt");
+    cs_uniform_file << std::setprecision(17);
+    for (size_t i = 0; i < cs_x.size(); ++i) {
+        cs_uniform_file << cs_x[i] << " " << cs_y[i] << " " << cs_uniform[i]
+                        << "\n";
+    }
+
+    const std::vector<double> cs_x_nonuniform{0.0, 0.5, 1.5, 3.0, 4.0};
+    const std::vector<double> cs_y_nonuniform{0.0, 0.25, 2.25, 9.0, 16.0};
+    const auto cs_nonuniform_values =
+        integral::cumsimpson(cs_x_nonuniform, cs_y_nonuniform);
+    std::ofstream cs_nonuniform_file(compare_dir
+                                     / "integral_cumsimpson_nonuniform.txt");
+    cs_nonuniform_file << std::setprecision(17);
+    for (size_t i = 0; i < cs_x_nonuniform.size(); ++i) {
+        cs_nonuniform_file << cs_x_nonuniform[i] << " " << cs_y_nonuniform[i]
+                           << " " << cs_nonuniform_values[i] << "\n";
+    }
+
+    const std::vector<double> cs_even_y{0.0, 1.0, 4.0, 9.0, 16.0, 25.0};
+    const auto cs_even = integral::cumsimpson(cs_even_y, 1.0);
+    std::ofstream cs_even_file(compare_dir / "integral_cumsimpson_even.txt");
+    cs_even_file << std::setprecision(17);
+    for (size_t i = 0; i < cs_even_y.size(); ++i) {
+        cs_even_file << static_cast<double>(i) << " " << cs_even_y[i] << " "
+                     << cs_even[i] << "\n";
+    }
+
+    // ---- Matrix integration against analytic columns ----
+    matrix::matrixd integrand(5, 2);
+    for (size_t i = 0; i < integrand.rows(); ++i) {
+        const double xi = static_cast<double>(i);
+        integrand(i, 0) = xi * xi;
+        integrand(i, 1) = xi * xi * xi;
+    }
+    const auto simpson_columns = integral::simpson(integrand, 1.0);
+    const auto trapz_columns = integral::trapz(integrand, 1.0);
+    std::ofstream integrand_file(compare_dir / "integral_matrix.txt");
+    integrand_file << std::setprecision(17);
+    for (size_t i = 0; i < integrand.rows(); ++i) {
+        integrand_file << integrand(i, 0) << " " << integrand(i, 1) << "\n";
+    }
+    std::ofstream matrix_results_file(compare_dir
+                                      / "integral_matrix_results.txt");
+    matrix_results_file << std::setprecision(17);
+    matrix_results_file << simpson_columns[0] << " " << simpson_columns[1]
+                        << "\n";
+    matrix_results_file << trapz_columns[0] << " " << trapz_columns[1] << "\n";
+
     std::cout << "Total checks: " << g_total << ", failures: " << g_failures
               << "\n";
     return g_failures == 0 ? 0 : 1;
