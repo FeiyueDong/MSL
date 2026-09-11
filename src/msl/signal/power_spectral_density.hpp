@@ -159,54 +159,58 @@ cpsd_welch(std::span<const double> x,
 }
 
 /**
- * @brief Compute cross power spectral density from one FFT frame.
+ * @brief Compute the cross power spectrum from one FFT frame.
+ *
+ * Returns the unnormalized cross spectrum `X * conj(Y)`; no PSD density
+ * scaling is applied. Use `cpsd_welch` for a density-normalized estimate.
+ *
+ * When `nfft` is greater than the input length, both inputs are zero-padded
+ * to `nfft` before the FFT.
  *
  * @param x First input signal.
- * @param y Second input signal.
- * @param output Output CPSD spectrum with size `nfft`.
- * @param nfft FFT length.
+ * @param y Second input signal, must have the same size as `x`.
+ * @param output Output spectrum with size `nfft`.
+ * @param nfft FFT length, must be greater than 0.
  */
-inline void cpsd(std::span<const double> x,
-                 std::span<const double> y,
-                 std::span<std::complex<double>> output,
-                 size_t nfft) {
+inline void cross_power_spectrum(std::span<const double> x,
+                                 std::span<const double> y,
+                                 std::span<std::complex<double>> output,
+                                 size_t nfft) {
     if (nfft == 0) {
-        throw std::invalid_argument("CPSD: nfft must be greater than 0");
+        throw std::invalid_argument(
+            "Cross power spectrum: nfft must be greater than 0");
     }
     if (x.size() != y.size()) {
         throw std::invalid_argument("Input signals must have the same length.");
     }
     if (output.size() != nfft) {
         throw std::invalid_argument(
-            "CPSD: output buffer size must be equal to nfft");
-    }
-    if (x.size() < nfft || y.size() < nfft) {
-        throw std::invalid_argument(
-            "CPSD: input signals must be at least as long as nfft.");
+            "Cross power spectrum: output buffer size must be equal to nfft");
     }
 
-    // Compute FFTs
+    // Compute FFTs (zero-padding to nfft when needed)
     auto Xf = signal::fft(x, nfft);
     auto Yf = signal::fft(y, nfft);
 
-    // Compute Cross Power Spectral Density
     for (size_t k = 0; k < nfft; ++k) {
         output[k] = Xf[k] * std::conj(Yf[k]);
     }
 }
 
 /**
- * @brief Return cross power spectral density from one FFT frame.
+ * @brief Return the cross power spectrum from one FFT frame.
  *
  * @param x First input signal.
- * @param y Second input signal.
- * @param nfft FFT length.
- * @return CPSD spectrum with size `nfft`.
+ * @param y Second input signal, must have the same size as `x`.
+ * @param nfft FFT length, must be greater than 0.
+ * @return Unnormalized cross spectrum with size `nfft`.
  */
 inline std::vector<std::complex<double>>
-cpsd(std::span<const double> x, std::span<const double> y, size_t nfft) {
+cross_power_spectrum(std::span<const double> x,
+                     std::span<const double> y,
+                     size_t nfft) {
     std::vector<std::complex<double>> output(nfft);
-    cpsd(x, y, output, nfft);
+    cross_power_spectrum(x, y, output, nfft);
     return output;
 }
 
@@ -277,40 +281,49 @@ psd_welch(std::span<const double> x,
 }
 
 /**
- * @brief Compute power spectral density from one FFT frame.
+ * @brief Compute the power spectrum from one FFT frame.
+ *
+ * Returns the unnormalized power spectrum `|X|^2`; no PSD density scaling is
+ * applied. Use `psd_welch` for a density-normalized estimate.
+ *
+ * When `nfft` is greater than the input length, the input is zero-padded to
+ * `nfft` before the FFT.
  *
  * @param x Input signal.
- * @param output Output PSD spectrum with size `nfft`.
- * @param nfft FFT length.
+ * @param output Output spectrum with size `nfft`.
+ * @param nfft FFT length, must be greater than 0.
  */
-inline void
-psd(std::span<const double> x, std::span<double> output, size_t nfft) {
+inline void power_spectrum(std::span<const double> x,
+                           std::span<double> output,
+                           size_t nfft) {
     if (nfft == 0) {
-        throw std::invalid_argument("PSD: nfft must be greater than 0");
+        throw std::invalid_argument(
+            "Power spectrum: nfft must be greater than 0");
     }
     if (output.size() != nfft) {
         throw std::invalid_argument(
-            "PSD: output buffer size must be equal to nfft");
+            "Power spectrum: output buffer size must be equal to nfft");
     }
 
-    std::vector<std::complex<double>> cpsd_result(nfft);
-    cpsd(x, x, cpsd_result, nfft);
+    std::vector<std::complex<double>> cross_spectrum(nfft);
+    cross_power_spectrum(x, x, cross_spectrum, nfft);
 
     for (size_t k = 0; k < nfft; ++k) {
-        output[k] = std::real(cpsd_result[k]);
+        output[k] = std::real(cross_spectrum[k]);
     }
 }
 
 /**
- * @brief Return power spectral density from one FFT frame.
+ * @brief Return the power spectrum from one FFT frame.
  *
  * @param x Input signal.
- * @param nfft FFT length.
- * @return PSD spectrum with size `nfft`.
+ * @param nfft FFT length, must be greater than 0.
+ * @return Unnormalized power spectrum with size `nfft`.
  */
-inline std::vector<double> psd(std::span<const double> x, size_t nfft) {
+inline std::vector<double> power_spectrum(std::span<const double> x,
+                                          size_t nfft) {
     std::vector<double> output(nfft);
-    psd(x, output, nfft);
+    power_spectrum(x, output, nfft);
     return output;
 }
 

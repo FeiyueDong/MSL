@@ -24,7 +24,7 @@ The signal module provides digital signal processing capabilities: FFT/IFFT (1D/
 | `filtfilt.hpp` | Zero-phase forward-backward filtering |
 | `filter_design.hpp` | Filter type enums and coefficient struct |
 | `fourier_domain_filter.hpp` | Frequency-domain filtering with window shaping |
-| `power_spectral_density.hpp` | PSD/CPSD via Welch's method |
+| `power_spectral_density.hpp` | Single-frame power spectra and Welch PSD/CPSD |
 | `window.hpp` | Hamming, Hann, Blackman, rectangular window functions |
 | `detrend.hpp` | Polynomial trend removal |
 
@@ -202,10 +202,13 @@ auto cpsd = msl::signal::cpsd_welch(
     x, y, window, noverlap, 256, 2048, 100.0);
 auto frequencies = msl::signal::fft_frequencies(2048, 100.0);
 
-// Single-frame PSD
-auto psd = msl::signal::psd(x, nfft);
-auto cpsd = msl::signal::cpsd(x, y, nfft);
+// Single-frame spectra (unnormalized)
+auto power = msl::signal::power_spectrum(x, nfft);          // |X|^2
+auto cross = msl::signal::cross_power_spectrum(x, y, nfft); // X * conj(Y)
 ```
+
+When `nfft` exceeds the input length, single-frame functions zero-pad the
+input before the FFT.
 
 ### Parameters
 
@@ -222,6 +225,10 @@ Welch functions return the full two-sided `nfft` spectrum using
 `sampling_rate * sum(window^2)`. A MATLAB-style one-sided spectrum for real
 signals can be formed from bins `0..nfft/2`, doubling interior positive
 frequency bins but not DC or the Nyquist bin.
+
+`psd_welch` and `cpsd_welch` are density-normalized (power/Hz). The
+single-frame `power_spectrum` and `cross_power_spectrum` are unnormalized
+(`|X|^2` and `X * conj(Y)`), so they are deliberately not named PSD.
 
 ## Unbiased Cross-Covariance (`cross_covariance.hpp`)
 

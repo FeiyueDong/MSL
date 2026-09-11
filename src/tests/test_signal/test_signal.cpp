@@ -415,6 +415,58 @@ int test_welch_and_covariance() {
     return 0;
 }
 
+int test_power_spectrum() {
+    const std::vector<double> x{1.0, -2.0, 0.5, 3.0};
+    const std::vector<double> y{0.5, 1.0, -1.0, 2.0};
+    constexpr size_t nfft = 8;
+
+    // Single-frame power spectrum equals |FFT|^2
+    const auto power = signal::power_spectrum(x, nfft);
+    EXPECT_EQ(power.size(), nfft);
+    const auto spectrum = signal::fft(x, nfft);
+    for (size_t k = 0; k < nfft; ++k) {
+        EXPECT_NEAR(power[k], std::norm(spectrum[k]), 1e-12);
+        EXPECT_TRUE(power[k] >= 0.0);
+    }
+
+    // Zero-padding: explicit padded input matches automatic padding
+    std::vector<double> padded(nfft, 0.0);
+    std::copy(x.begin(), x.end(), padded.begin());
+    const auto explicit_power = signal::power_spectrum(padded, nfft);
+    for (size_t k = 0; k < nfft; ++k) {
+        EXPECT_NEAR(power[k], explicit_power[k], 1e-12);
+    }
+
+    // Cross power spectrum equals X * conj(Y) and is conjugate antisymmetric
+    const auto cross = signal::cross_power_spectrum(x, y, nfft);
+    const auto reverse_cross = signal::cross_power_spectrum(y, x, nfft);
+    const auto y_spectrum = signal::fft(y, nfft);
+    for (size_t k = 0; k < nfft; ++k) {
+        EXPECT_CPLX_NEAR(
+            cross[k], spectrum[k] * std::conj(y_spectrum[k]), 1e-12);
+        EXPECT_CPLX_NEAR(reverse_cross[k], std::conj(cross[k]), 1e-12);
+    }
+
+    // Invalid nfft and mismatched input sizes are rejected
+    bool threw_nfft = false;
+    try {
+        (void)signal::cross_power_spectrum(x, y, 0);
+    } catch (const std::invalid_argument &) {
+        threw_nfft = true;
+    }
+    EXPECT_TRUE(threw_nfft);
+
+    bool threw_size = false;
+    try {
+        (void)signal::cross_power_spectrum(x, std::vector<double>{1.0}, nfft);
+    } catch (const std::invalid_argument &) {
+        threw_size = true;
+    }
+    EXPECT_TRUE(threw_size);
+
+    return 0;
+}
+
 int test_windows_and_filter() {
     auto hann = signal::hann_window(5);
     std::vector<double> hann_expected{0.0, 0.5, 1.0, 0.5, 0.0};
@@ -463,7 +515,8 @@ int main() {
     int result = test_fft() + test_fft_matrix_roundtrip()
                  + test_butterworth_lowpass_highpass()
                  + test_butterworth_bandpass() + test_butterworth_bandstop()
-                 + test_welch_and_covariance() + test_windows_and_filter();
+                 + test_welch_and_covariance() + test_power_spectrum()
+                 + test_windows_and_filter();
 
     auto compare_dir =
         project_root() / "test_result" / "signal" / "matlab_compare";
