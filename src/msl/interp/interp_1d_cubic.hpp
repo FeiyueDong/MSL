@@ -80,12 +80,19 @@ public:
     void set_boundary_condition(BoundaryCondition bc_type,
                                 double left_slope = 0.0,
                                 double right_slope = 0.0) {
-        if (bc_type != bc_type_) {
-            bc_type_ = bc_type;
-            if (bc_type == BoundaryCondition::Clamped) {
-                left_slope_ = left_slope;
-                right_slope_ = right_slope;
-            }
+        const bool changed =
+            bc_type != bc_type_
+            || (bc_type == BoundaryCondition::Clamped
+                && (left_slope != left_slope_ || right_slope != right_slope_));
+
+        bc_type_ = bc_type;
+
+        if (bc_type == BoundaryCondition::Clamped) {
+            left_slope_ = left_slope;
+            right_slope_ = right_slope;
+        }
+
+        if (changed) {
             compute_coefficients();
         }
     }

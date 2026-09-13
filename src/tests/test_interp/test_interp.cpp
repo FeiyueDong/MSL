@@ -146,6 +146,23 @@ int test_interp_state() {
     }
     EXPECT_TRUE(threw_in_range);
 
+    // Derivative evaluation on an empty spline must be guarded as well
+    bool threw_derivative = false;
+    try {
+        (void)cubic.derivative(0.5);
+    } catch (const std::runtime_error &) {
+        threw_derivative = true;
+    }
+    EXPECT_TRUE(threw_derivative);
+
+    bool threw_second_derivative = false;
+    try {
+        (void)cubic.second_derivative(0.5);
+    } catch (const std::runtime_error &) {
+        threw_second_derivative = true;
+    }
+    EXPECT_TRUE(threw_second_derivative);
+
     interp::AkimaSpline akima;
     bool threw_akima = false;
     try {
@@ -220,6 +237,24 @@ int test_interp_state() {
         cubic_x, cubic_y, interp::CubicSpline::BoundaryCondition::Natural);
     EXPECT_NEAR(natural_cubic.second_derivative(cubic_x.front()), 0.0, 1e-9);
     EXPECT_NEAR(natural_cubic.second_derivative(cubic_x.back()), 0.0, 1e-9);
+
+    // Updating clamped slopes for the same boundary type must recompute the
+    // coefficients, not only the stored slope values.
+    auto clamped = interp::CubicSpline::from_data(
+        cubic_x, cubic_y, interp::CubicSpline::BoundaryCondition::Clamped);
+    EXPECT_NEAR(clamped.derivative(cubic_x.front()), 0.0, 1e-12);
+    clamped.set_boundary_condition(
+        interp::CubicSpline::BoundaryCondition::Clamped, 1.0, -1.0);
+    EXPECT_NEAR(clamped.derivative(cubic_x.front()), 1.0, 1e-12);
+    EXPECT_NEAR(clamped.derivative(cubic_x.back()), -1.0, 1e-12);
+
+    // Switching to clamped from another boundary type also recomputes
+    auto switched = interp::CubicSpline::from_data(
+        cubic_x, cubic_y, interp::CubicSpline::BoundaryCondition::Natural);
+    switched.set_boundary_condition(
+        interp::CubicSpline::BoundaryCondition::Clamped, 2.0, -2.0);
+    EXPECT_NEAR(switched.derivative(cubic_x.front()), 2.0, 1e-12);
+    EXPECT_NEAR(switched.derivative(cubic_x.back()), -2.0, 1e-12);
 
     return 0;
 }

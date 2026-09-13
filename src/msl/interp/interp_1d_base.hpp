@@ -261,6 +261,7 @@ protected:
      * Throws if out of range and extrapolation is disabled
      */
     size_t find_interval(double x) const {
+        ensure_data();
         if (x < x_.front()) {
             if (extrap_mode_ == ExtrapolationMode::None) {
                 throw std::out_of_range("Interp: x out of interpolation range");

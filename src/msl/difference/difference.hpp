@@ -918,8 +918,20 @@ inline void savgol_gradient(std::span<const double> y,
                             int window_size = 5,
                             int poly_order = 2,
                             double dx = 1.0) {
-    if (window_size % 2 == 0) {
-        throw std::invalid_argument("Gradient: window_size must be odd");
+    detail::validate_spacing(dx);
+
+    if (window_size < 5) {
+        throw std::invalid_argument("Gradient: window_size must be at least 5");
+    }
+
+    if (poly_order < 0) {
+        throw std::invalid_argument(
+            "Gradient: poly_order must be non-negative");
+    }
+
+    if (window_size < 5 || window_size % 2 == 0) {
+        throw std::invalid_argument(
+            "Gradient: window_size must be odd and >= 5");
     }
     if (poly_order >= window_size) {
         throw std::invalid_argument(

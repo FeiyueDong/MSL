@@ -249,6 +249,26 @@ int test_difference() {
                                             0.0);
     }));
 
+    // Savitzky-Golay parameter validation
+    const std::vector<double> savgol_data(11, 1.0);
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::savgol_gradient(savgol_data, 3, 1, 1.0); }));
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::savgol_gradient(savgol_data, -1, 1, 1.0); }));
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::savgol_gradient(savgol_data, 5, -1, 1.0); }));
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::savgol_gradient(savgol_data, 5, 2, 0.0); }));
+    EXPECT_TRUE(throws_invalid(
+        [&] { (void)difference::savgol_gradient(savgol_data, 5, 5, 1.0); }));
+
+    // The smallest valid configuration is still accepted
+    const auto savgol_constant =
+        difference::savgol_gradient(savgol_data, 5, 0, 1.0);
+    for (const double value : savgol_constant) {
+        EXPECT_NEAR(value, 0.0, 1e-12);
+    }
+
     // Non-uniform coordinates must be strictly increasing
     EXPECT_TRUE(throws_invalid([] {
         (void)difference::forward_gradient(std::vector<double>{1.0, 2.0, 4.0},
