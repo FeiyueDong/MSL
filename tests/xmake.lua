@@ -1,4 +1,4 @@
-add_includedirs("$(projectdir)/src/tests")
+add_includedirs("$(projectdir)/tests")
 
 includes("test_difference")
 includes("test_equation")

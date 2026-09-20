@@ -42,7 +42,7 @@ end
 -- include directories.
 target("msl")
     set_kind("headeronly")
-    add_includedirs("src/msl", {public = true})
-    add_headerfiles("src/msl/**.hpp")
+    add_includedirs("include/msl", {public = true})
+    add_headerfiles("include/msl/**.hpp")
 
-includes("src/tests")
+includes("tests")

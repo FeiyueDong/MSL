@@ -1,223 +1,282 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="detail">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="detail\difference">
-      <UniqueIdentifier>{dfdeffd4-a037-489e-b5da-b0968e517768}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\equation">
-      <UniqueIdentifier>{ee3c48f5-4d02-44f7-bc19-23904438376f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\integral">
-      <UniqueIdentifier>{1cd6475a-311d-4a48-b1b2-777c6562dbde}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\interp">
-      <UniqueIdentifier>{6fe9c1a4-703c-404f-bfb0-6de326a92283}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\matrix">
-      <UniqueIdentifier>{6df9513d-f2de-4f64-a918-60faf3139f62}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\utils">
-      <UniqueIdentifier>{ba1e73aa-a74e-4167-a488-eae8c4cf2ccf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\polynomial">
-      <UniqueIdentifier>{ea979323-f999-4b26-bd65-20b8e12547ff}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\ode">
-      <UniqueIdentifier>{ea08f5ab-213b-4899-a49d-b3da52274222}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\ode\detail">
-      <UniqueIdentifier>{8d777a2f-62f8-4db5-bf8c-0870f809e5c0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="detail\signal">
-      <UniqueIdentifier>{c4c4cd7a-d1af-441b-99b0-239543b2692e}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\msl\signal\butterworth_filter.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\cross_covariance.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\detrend.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\fft.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\filter.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\filter_design.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\filtfilt.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\fourier_domain_filter.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\power_spectral_density.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal\window.hpp">
-      <Filter>detail\signal</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\difference\difference.hpp">
-      <Filter>detail\difference</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\difference.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\integral.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\polynomial.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\signal.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\bisection.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\brent.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\newton.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\regula_falsi.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\root_options.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\root_result.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\equation\secant.hpp">
-      <Filter>detail\equation</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\integral\adaptive_simpson.hpp">
-      <Filter>detail\integral</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\integral\romberg.hpp">
-      <Filter>detail\integral</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\integral\simpson.hpp">
-      <Filter>detail\integral</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\integral\trapz.hpp">
-      <Filter>detail\integral</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_akima.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_base.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_cubic.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_linear.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_near.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_pchip.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_polynomial.hpp">
-      <Filter>detail\interp</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_base.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_owned.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_view.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\eigen_interface.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\martrix_decompose.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\matrix_conversion.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\matrix_operation.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_base.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_owned.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_view.hpp">
-      <Filter>detail\matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\euler.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\heun.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\ode_options.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\ode_result.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\ode45.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\rk4.hpp">
-      <Filter>detail\ode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\detail\fixed_step.hpp">
-      <Filter>detail\ode\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\ode\detail\state_ops.hpp">
-      <Filter>detail\ode\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\polynomial\polynomial.hpp">
-      <Filter>detail\polynomial</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\utils\data_io.hpp">
-      <Filter>detail\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\msl\utils\msl_assert.hpp">
-      <Filter>detail\utils</Filter>
-    </ClInclude>
-  </ItemGroup>
+<Project ToolsVersion="4.0" 
+    xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup>
+        <Filter Include="头文件">
+            <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+            <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+        </Filter>
+        <Filter Include="资源文件">
+            <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+            <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+        </Filter>
+        <Filter Include="detail">
+            <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+            <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+        </Filter>
+        <Filter Include="detail\difference">
+            <UniqueIdentifier>{dfdeffd4-a037-489e-b5da-b0968e517768}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\equation">
+            <UniqueIdentifier>{ee3c48f5-4d02-44f7-bc19-23904438376f}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\integral">
+            <UniqueIdentifier>{1cd6475a-311d-4a48-b1b2-777c6562dbde}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\interp">
+            <UniqueIdentifier>{6fe9c1a4-703c-404f-bfb0-6de326a92283}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\matrix">
+            <UniqueIdentifier>{6df9513d-f2de-4f64-a918-60faf3139f62}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\utils">
+            <UniqueIdentifier>{ba1e73aa-a74e-4167-a488-eae8c4cf2ccf}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\polynomial">
+            <UniqueIdentifier>{ea979323-f999-4b26-bd65-20b8e12547ff}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\ode">
+            <UniqueIdentifier>{ea08f5ab-213b-4899-a49d-b3da52274222}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\ode\detail">
+            <UniqueIdentifier>{8d777a2f-62f8-4db5-bf8c-0870f809e5c0}</UniqueIdentifier>
+        </Filter>
+        <Filter Include="detail\signal">
+            <UniqueIdentifier>{c4c4cd7a-d1af-441b-99b0-239543b2692e}</UniqueIdentifier>
+        </Filter>
+    </ItemGroup>
+    <ItemGroup>
+        <ClInclude Include="..\..\include\msl\signal\butterworth_filter.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\cross_covariance.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\detrend.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\fft.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\filter.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\filter_design.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\filtfilt.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\fourier_domain_filter.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\power_spectral_density.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal\window.hpp">
+            <Filter>detail\signal
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\difference\difference.hpp">
+            <Filter>detail\difference
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\difference.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\integral.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\polynomial.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\signal.hpp">
+            <Filter>头文件
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\bisection.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\brent.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\newton.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\regula_falsi.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\root_options.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\root_result.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\equation\secant.hpp">
+            <Filter>detail\equation
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\integral\adaptive_simpson.hpp">
+            <Filter>detail\integral
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\integral\romberg.hpp">
+            <Filter>detail\integral
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\integral\simpson.hpp">
+            <Filter>detail\integral
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\integral\trapz.hpp">
+            <Filter>detail\integral
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_akima.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_base.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_cubic.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_linear.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_near.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_pchip.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_polynomial.hpp">
+            <Filter>detail\interp
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_base.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_owned.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_view.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\eigen_interface.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\martrix_decompose.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\matrix_conversion.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\matrix_operation.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_base.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_owned.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_view.hpp">
+            <Filter>detail\matrix
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\euler.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\heun.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\ode_options.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\ode_result.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\ode45.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\rk4.hpp">
+            <Filter>detail\ode
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\detail\fixed_step.hpp">
+            <Filter>detail\ode\detail
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\ode\detail\state_ops.hpp">
+            <Filter>detail\ode\detail
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\polynomial\polynomial.hpp">
+            <Filter>detail\polynomial
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\utils\data_io.hpp">
+            <Filter>detail\utils
+            </Filter>
+        </ClInclude>
+        <ClInclude Include="..\..\include\msl\utils\msl_assert.hpp">
+            <Filter>detail\utils
+            </Filter>
+        </ClInclude>
+    </ItemGroup>
 </Project>

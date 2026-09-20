@@ -1,204 +1,198 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-  </ItemGroup>
-  <PropertyGroup Label="Globals">
-    <VCProjectVersion>18.0</VCProjectVersion>
-    <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{8dcf6c43-1691-40e7-b0d4-7274a7fe0029}</ProjectGuid>
-    <RootNamespace>msl</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-  </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="Shared">
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <Manifest>
-      <EnableSegmentHeap>true</EnableSegmentHeap>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <Manifest>
-      <EnableSegmentHeap>true</EnableSegmentHeap>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <Manifest>
-      <EnableSegmentHeap>true</EnableSegmentHeap>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-    <Manifest>
-      <EnableSegmentHeap>true</EnableSegmentHeap>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\msl\difference.hpp" />
-    <ClInclude Include="..\..\src\msl\difference\difference.hpp" />
-    <ClInclude Include="..\..\src\msl\equation.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\bisection.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\brent.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\newton.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\regula_falsi.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\root_options.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\root_result.hpp" />
-    <ClInclude Include="..\..\src\msl\equation\secant.hpp" />
-    <ClInclude Include="..\..\src\msl\integral.hpp" />
-    <ClInclude Include="..\..\src\msl\integral\adaptive_simpson.hpp" />
-    <ClInclude Include="..\..\src\msl\integral\romberg.hpp" />
-    <ClInclude Include="..\..\src\msl\integral\simpson.hpp" />
-    <ClInclude Include="..\..\src\msl\integral\trapz.hpp" />
-    <ClInclude Include="..\..\src\msl\interp.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_akima.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_base.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_cubic.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_linear.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_near.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_pchip.hpp" />
-    <ClInclude Include="..\..\src\msl\interp\interp_1d_polynomial.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_base.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_owned.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\complex_matrix_view.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\eigen_interface.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\martrix_decompose.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\matrix_conversion.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\matrix_operation.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_base.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_owned.hpp" />
-    <ClInclude Include="..\..\src\msl\matrix\real_matrix_view.hpp" />
-    <ClInclude Include="..\..\src\msl\ode.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\detail\fixed_step.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\detail\state_ops.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\euler.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\heun.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\ode45.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\ode_options.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\ode_result.hpp" />
-    <ClInclude Include="..\..\src\msl\ode\rk4.hpp" />
-    <ClInclude Include="..\..\src\msl\polynomial.hpp" />
-    <ClInclude Include="..\..\src\msl\polynomial\polynomial.hpp" />
-    <ClInclude Include="..\..\src\msl\signal.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\butterworth_filter.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\cross_covariance.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\detrend.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\fft.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\filter.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\filter_design.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\filtfilt.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\fourier_domain_filter.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\power_spectral_density.hpp" />
-    <ClInclude Include="..\..\src\msl\signal\window.hpp" />
-    <ClInclude Include="..\..\src\msl\utils\data_io.hpp" />
-    <ClInclude Include="..\..\src\msl\utils\msl_assert.hpp" />
-  </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+<Project DefaultTargets="Build" 
+    xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup Label="ProjectConfigurations">
+        <ProjectConfiguration Include="Debug|Win32">
+            <Configuration>Debug</Configuration>
+            <Platform>Win32</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|Win32">
+            <Configuration>Release</Configuration>
+            <Platform>Win32</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Debug|x64">
+            <Configuration>Debug</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|x64">
+            <Configuration>Release</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+    </ItemGroup>
+    <PropertyGroup Label="Globals">
+        <VCProjectVersion>18.0</VCProjectVersion>
+        <Keyword>Win32Proj</Keyword>
+        <ProjectGuid>{8dcf6c43-1691-40e7-b0d4-7274a7fe0029}</ProjectGuid>
+        <RootNamespace>msl</RootNamespace>
+        <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    </PropertyGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>true</UseDebugLibraries>
+        <PlatformToolset>v145</PlatformToolset>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>false</UseDebugLibraries>
+        <PlatformToolset>v145</PlatformToolset>
+        <WholeProgramOptimization>true</WholeProgramOptimization>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>true</UseDebugLibraries>
+        <PlatformToolset>v145</PlatformToolset>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>false</UseDebugLibraries>
+        <PlatformToolset>v145</PlatformToolset>
+        <WholeProgramOptimization>true</WholeProgramOptimization>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+    <ImportGroup Label="ExtensionSettings"></ImportGroup>
+    <ImportGroup Label="Shared"></ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" /></ImportGroup>
+    <PropertyGroup Label="UserMacros" />
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+        </ClCompile>
+        <Link>
+            <SubSystem>Console</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+        <Manifest>
+            <EnableSegmentHeap>true</EnableSegmentHeap>
+        </Manifest>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <FunctionLevelLinking>true</FunctionLevelLinking>
+            <IntrinsicFunctions>true</IntrinsicFunctions>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+        </ClCompile>
+        <Link>
+            <SubSystem>Console</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+        <Manifest>
+            <EnableSegmentHeap>true</EnableSegmentHeap>
+        </Manifest>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+        </ClCompile>
+        <Link>
+            <SubSystem>Console</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+        <Manifest>
+            <EnableSegmentHeap>true</EnableSegmentHeap>
+        </Manifest>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <FunctionLevelLinking>true</FunctionLevelLinking>
+            <IntrinsicFunctions>true</IntrinsicFunctions>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>true</ConformanceMode>
+            <LanguageStandard>stdcpp20</LanguageStandard>
+        </ClCompile>
+        <Link>
+            <SubSystem>Console</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+        <Manifest>
+            <EnableSegmentHeap>true</EnableSegmentHeap>
+        </Manifest>
+    </ItemDefinitionGroup>
+    <ItemGroup>
+        <ClInclude Include="..\..\include\msl\difference.hpp" />
+        <ClInclude Include="..\..\include\msl\difference\difference.hpp" />
+        <ClInclude Include="..\..\include\msl\equation.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\bisection.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\brent.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\newton.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\regula_falsi.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\root_options.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\root_result.hpp" />
+        <ClInclude Include="..\..\include\msl\equation\secant.hpp" />
+        <ClInclude Include="..\..\include\msl\integral.hpp" />
+        <ClInclude Include="..\..\include\msl\integral\adaptive_simpson.hpp" />
+        <ClInclude Include="..\..\include\msl\integral\romberg.hpp" />
+        <ClInclude Include="..\..\include\msl\integral\simpson.hpp" />
+        <ClInclude Include="..\..\include\msl\integral\trapz.hpp" />
+        <ClInclude Include="..\..\include\msl\interp.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_akima.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_base.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_cubic.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_linear.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_near.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_pchip.hpp" />
+        <ClInclude Include="..\..\include\msl\interp\interp_1d_polynomial.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_base.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_owned.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\complex_matrix_view.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\eigen_interface.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\martrix_decompose.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\matrix_conversion.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\matrix_operation.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_base.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_owned.hpp" />
+        <ClInclude Include="..\..\include\msl\matrix\real_matrix_view.hpp" />
+        <ClInclude Include="..\..\include\msl\ode.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\detail\fixed_step.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\detail\state_ops.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\euler.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\heun.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\ode45.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\ode_options.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\ode_result.hpp" />
+        <ClInclude Include="..\..\include\msl\ode\rk4.hpp" />
+        <ClInclude Include="..\..\include\msl\polynomial.hpp" />
+        <ClInclude Include="..\..\include\msl\polynomial\polynomial.hpp" />
+        <ClInclude Include="..\..\include\msl\signal.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\butterworth_filter.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\cross_covariance.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\detrend.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\fft.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\filter.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\filter_design.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\filtfilt.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\fourier_domain_filter.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\power_spectral_density.hpp" />
+        <ClInclude Include="..\..\include\msl\signal\window.hpp" />
+        <ClInclude Include="..\..\include\msl\utils\data_io.hpp" />
+        <ClInclude Include="..\..\include\msl\utils\msl_assert.hpp" />
+    </ItemGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+    <ImportGroup Label="ExtensionTargets"></ImportGroup>
 </Project>
