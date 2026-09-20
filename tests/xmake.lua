@@ -1,4 +1,5 @@
 add_includedirs("$(projectdir)/tests")
+add_includedirs("$(projectdir)/include/msl")
 
 includes("test_difference")
 includes("test_equation")
