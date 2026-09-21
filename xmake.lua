@@ -18,16 +18,9 @@ elseif is_plat("mingw") then
     set_toolchains("gcc")
 end
 
-add_requires("eigen")
-
 if is_plat("linux", "macosx", "mingw") then
     add_cxflags("-fPIC")
 end
 
-target("msl")
-    set_kind("headeronly")
-    add_packages("eigen", {public = true})
-    add_includedirs("include", {public = true})
-    add_headerfiles("include/msl/**.hpp")
-
+includes("xmake/products.lua")
 includes("tests")
