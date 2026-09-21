@@ -6,11 +6,11 @@ set_allowedplats("windows", "linux", "macosx", "mingw")
 
 add_rules("mode.debug", "mode.release")
 
+set_languages("c++20")
+
 if is_plat("windows") then
     set_toolchains("msvc")
 elseif is_plat("mingw") then
-    -- MSYS2/GCC installations on PATH are auto-detected. Set the environment
-    -- variable MSYS2_ROOT only when the SDK lives outside PATH.
     local msys2_root = os.getenv("MSYS2_ROOT")
     if msys2_root and #msys2_root > 0 then
         set_config("sdk", msys2_root)
@@ -18,30 +18,15 @@ elseif is_plat("mingw") then
     set_toolchains("gcc")
 end
 
-set_languages("c++20")
-
-if is_plat("mingw") then
-    set_targetdir("$(projectdir)/build/mingw",{ bindir = "bin", libdir = "lib" })
-elseif is_plat("windows") then
-    set_targetdir("$(projectdir)/build/windows",{ bindir = "bin", libdir = "lib" })
-elseif is_plat("linux") then
-    set_targetdir("$(projectdir)/build/linux",{ bindir = "bin", libdir = "lib" })
-elseif is_plat("macosx") then
-    set_targetdir("$(projectdir)/build/macosx",{ bindir = "bin", libdir = "lib" })
-end
-
-if is_plat("linux", "macosx") then
-    add_requires("eigen", {system = true})
-end
+add_requires("eigen")
 
 if is_plat("linux", "macosx", "mingw") then
     add_cxflags("-fPIC")
 end
 
--- Header-only library target. Tests depend on "msl" and inherit its public
--- include directories.
 target("msl")
     set_kind("headeronly")
+    add_packages("eigen", {public = true})
     add_includedirs("include", {public = true})
     add_headerfiles("include/msl/**.hpp")
 
