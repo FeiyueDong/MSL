@@ -10,7 +10,8 @@ vcpkg_installed/
 # xmake build files
 .xmake/
 build/
-*.exe
+vsxmake2026/
+.vs/
 
 # calculation result
 test_result/
