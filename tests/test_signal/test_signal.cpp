@@ -335,6 +335,97 @@ int test_butterworth_lowpass_highpass() {
     return 0;
 }
 
+int test_filtfilt_startup_state() {
+    // Fourth-order Butterworth, fs = 50 Hz, bandpass = 0.1-20 Hz.
+    // The startup system has condition number approximately 1.53e8.
+    const auto coeffs = signal::butterworth_bandpass_design(4, 0.004, 0.8);
+    const auto zi = signal::internal::compute_filtfilt_zi(coeffs);
+    EXPECT_EQ(zi.size(), coeffs.order());
+
+    // Check the steady-state equations (I - A) * zi = B independently of
+    // the production matrix assembly and linear solver.
+    double residual_squared = 0.0;
+    double rhs_squared = 0.0;
+    for (size_t i = 0; i < zi.size(); ++i) {
+        EXPECT_TRUE(std::isfinite(zi[i]));
+        const double rhs = coeffs.b[i + 1] - coeffs.b[0] * coeffs.a[i + 1];
+        double lhs = i == 0 ? (1.0 + coeffs.a[1]) * zi[0]
+                            : coeffs.a[i + 1] * zi[0] + zi[i];
+        if (i + 1 < zi.size()) {
+            lhs -= zi[i + 1];
+        }
+        residual_squared += (lhs - rhs) * (lhs - rhs);
+        rhs_squared += rhs * rhs;
+    }
+    EXPECT_TRUE(rhs_squared > 0.0);
+    EXPECT_TRUE(std::sqrt(residual_squared / rhs_squared) < 1e-12);
+
+    return 0;
+}
+
+int test_filtfilt_scipy_regression() {
+    // Freeze MSL's fourth-order Butterworth coefficients for fs = 50 Hz,
+    // bandpass = 0.1-20 Hz, to isolate startup accuracy from filter design.
+    const signal::FilterCoefficients coeffs({0.42535862666592317,
+                                             0.0,
+                                             -1.7014345066636927,
+                                             0.0,
+                                             2.5521517599955392,
+                                             0.0,
+                                             -1.7014345066636927,
+                                             0.0,
+                                             0.42535862666592317},
+                                            {1.0,
+                                             -1.5996029777700229,
+                                             -1.1791986465384845,
+                                             1.95475819052779,
+                                             1.3787754193733217,
+                                             -1.2560181076011618,
+                                             -0.76871909196685861,
+                                             0.28904879421635543,
+                                             0.18095659087391688});
+    std::vector<double> input(64);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = 0.5 + 0.01 * static_cast<double>(i)
+                   + static_cast<double>((i * 17) % 23) / 23.0;
+    }
+
+    // SciPy 1.18.1, NumPy 2.5.3, using the coefficients and input above:
+    // scipy.signal.filtfilt(b, a, input, padtype="odd", padlen=24).
+    // Explicit padlen matches MSL's existing 3 * filter_order convention.
+    const std::vector<double> reference{
+        -0.12920387285104384,  0.63762211878087083,    0.28247904218102821,
+        0.16577211283327509,   0.70604800068972395,    0.67392102198702708,
+        0.15479600153196443,   0.15632626721990001,    0.6248849352773731,
+        0.62412181575407899,   0.1022053240052519,     0.090027580614569835,
+        0.57875882193818828,   0.55687078709869064,    0.05427673563882135,
+        0.025947955392433414,  0.52463826371826072,    0.50383993543146788,
+        -0.016754749424223558, -0.0074488714742053236, 0.43869569646707923,
+        0.46923366259724369,   -0.07400878925939397,   -0.10463682009487686,
+        0.47418410557889973,   0.26541535376591535,    0.056333332886786019,
+        0.63562237606515515,   0.60447709820457185,    0.061787054493352006,
+        0.092334447265266739,  0.53784331203942126,    0.54899429034018654,
+        0.02602421020727641,   0.0078959966479472815,  0.50547585856323241,
+        0.47600971627073624,   -0.021568061518181317,  -0.051159242987220112,
+        0.44675134363765534,   0.42878646606741133,    -0.0943685421605443,
+        -0.082016931216162339, 0.36261339326176878,    0.3946350741960839,
+        -0.14783953563999871,  -0.17966730766665825,   0.40312179332546461,
+        0.19049588855969252,   -0.013461622676578619,  0.56415774186821588,
+        0.53195927199293747,   -0.0023434365582762212, 0.016162690765983784,
+        0.47756414449175222,   0.47882064193600971,    -0.044260587957922801,
+        -0.041860335010182853, 0.41811971822752503,    0.43876628569527359,
+        -0.095992145055495831, -0.12806276404095163,   0.45286219325608756,
+        0.24560744213350938};
+
+    const auto filtered = signal::filtfilt(input, coeffs);
+    EXPECT_EQ(filtered.size(), reference.size());
+    for (size_t i = 0; i < filtered.size(); ++i) {
+        EXPECT_NEAR(filtered[i], reference[i], 1e-9);
+    }
+
+    return 0;
+}
+
 int test_welch_and_covariance() {
     const std::vector<double> x{1.0, 2.0, 0.0, -1.0, 3.0, 2.0};
     const std::vector<double> y{0.0, 1.0, 2.0, 1.0, -1.0, 2.0};
@@ -491,6 +582,7 @@ int main() {
     int result = test_fft() + test_fft_matrix_roundtrip()
                  + test_butterworth_lowpass_highpass()
                  + test_butterworth_bandpass() + test_butterworth_bandstop()
+                 + test_filtfilt_startup_state() + test_filtfilt_scipy_regression()
                  + test_welch_and_covariance() + test_power_spectrum()
                  + test_windows_and_filter();
 

@@ -107,13 +107,8 @@ compute_filtfilt_zi(const FilterCoefficients &coeffs) {
         rhs[i] = b[i + 1] - b[0] * a[i + 1];
     }
 
-    // Solve: zi = inv(sp) * rhs
-    auto sp_eig = matrix::eigen_interface::as_eigen(sp);
-    Eigen::MatrixXd sp_inv = sp_eig.inverse();
-    auto rhs_eig = Eigen::Map<const Eigen::VectorXd>(rhs.data(), rhs.size());
-    Eigen::VectorXd zi_eig = sp_inv * rhs_eig;
-    std::vector<double> zi(zi_eig.data(), zi_eig.data() + zi_eig.size());
-    return zi;
+    // Solve sp * zi = rhs directly to avoid inversion roundoff in startup states.
+    return matrix::eigen_interface::solve(sp, rhs);
 }
 
 /**
