@@ -19,13 +19,14 @@ coeffs_[0] + coeffs_[1] * x + coeffs_[2] * x^2 + ... + coeffs_[n] * x^n
 
 ```cpp
 // From coefficients
-msl::polynomial::Polynomial p({1.0, 2.0, 3.0});  // 1 + 2x + 3x^2
+const std::vector<double> coefficients{1.0, 2.0, 3.0};
+msl::polynomial::Polynomial p(coefficients);  // 1 + 2x + 3x^2
 
 // Fit to data (implicit x = 0, 1, 2, ...)
-msl::polynomial::Polynomial p(y, degree);
+auto implicit_fit = msl::polynomial::Polynomial::from_fit(y, degree);
 
 // Fit to data (explicit x values)
-msl::polynomial::Polynomial p(x, y, degree);
+auto explicit_fit = msl::polynomial::Polynomial::from_fit(x, y, degree);
 ```
 
 ### Evaluation
@@ -48,7 +49,8 @@ p(x_values, result);
 p.fit(x, y, degree);
 
 // Set coefficients directly
-p.set_coefficients({1.0, 2.0, 3.0});
+const std::vector<double> coefficients{1.0, 2.0, 3.0};
+p.set_coefficients(coefficients);
 ```
 
 ### Accessors

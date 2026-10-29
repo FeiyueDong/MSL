@@ -1,88 +1,104 @@
 # MSL — Modern Scientific Library
 
-## Overview
+MSL is a C++20 header-only library of general numerical algorithms. Its only
+external C++ dependency is Eigen3, used for linear algebra and FFT. MATLAB is
+used for optional cross-validation; selected C++ regressions contain frozen
+SciPy reference values and require no Python installation.
 
-MSL is a **C++20 header-only** numerical computing library inspired by MATLAB and NumPy/SciPy. It provides a comprehensive set of tools for matrix operations, signal processing, numerical differentiation, integration, interpolation, polynomial fitting, scalar nonlinear equations, and ODE initial value problems — all without external runtime dependencies beyond Eigen3.
+## API conventions
 
-### Design Philosophy
+- Matrices store columns contiguously: element `(i, j)` is at
+  `data()[j * rows() + i]`.
+- Owning containers and non-owning views are distinct. Matrix `*_copy`
+  accessors allocate independent storage; `column()` and matrix views borrow
+  existing storage and require the owner to remain alive.
+- Many vector algorithms provide an allocating overload and an overload that
+  writes to a caller-provided `std::span`. Supplying an output buffer does not
+  imply that the algorithm uses no temporary allocations.
+- Public high-level operations validate shapes and required inputs. Element
+  indexing remains unchecked; individual modules document their error rules.
+- Polynomial coefficients use ascending powers. Filter coefficients describe
+  ascending powers of `z^-1`. Filter cutoffs are normalized to Nyquist.
 
-- **Header-only**: Zero compilation overhead for distribution. Include what you need.
-- **Column-major storage**: Fortran/MATLAB-compatible memory layout (`data_[j * rows_ + i]`).
-- **Zero-copy API**: Every computational function provides two overloads — one that writes to a caller-provided buffer, and one that allocates and returns a new vector.
-- **Eigen3 bridge**: Seamless zero-copy interop with Eigen for high-performance linear algebra and FFT.
-- **No virtual dispatch overhead**: Matrix hierarchy uses CRTP-like patterns with `std::span` rather than virtual methods.
+## Modules
 
-### Modules
+| Module | Namespace | Public header | Purpose |
+|--------|-----------|---------------|---------|
+| [Matrix](matrix.md) | `msl::matrix` | `msl/matrix.hpp` | Real/complex matrices, views, decompositions, Eigen interop |
+| [Signal](signal.md) | `msl::signal` | `msl/signal.hpp` | FFT/IFFT, Butterworth and Fourier filters, spectra, covariance, detrending |
+| [Difference](difference.md) | `msl::difference` | `msl/difference.hpp` | Differences, gradients, vector calculus, Savitzky-Golay derivatives |
+| [Integral](integral.md) | `msl::integral` | `msl/integral.hpp` | Trapezoidal, Simpson, Romberg, adaptive quadrature |
+| [Interpolation](interp.md) | `msl::interp` | `msl/interp.hpp` | Linear, cubic spline, Akima, PCHIP, nearest, polynomial interpolation |
+| [Polynomial](polynomial.md) | `msl::polynomial` | `msl/polynomial.hpp` | Least-squares fitting, evaluation, derivatives |
+| [Equation](equation.md) | `msl::equation` | `msl/equation.hpp` | Scalar nonlinear root finding with diagnostics |
+| [ODE](ode.md) | `msl::ode` | `msl/ode.hpp` | Fixed-step and adaptive initial value solvers |
+| [Utilities](utils.md) | `msl::utils`, `msl` | Individual headers | Text data I/O and assertion handler |
 
-| Module | Namespace | Aggregator | Purpose |
-|--------|-----------|------------|---------|
-| [matrix](matrix.md) | `msl::matrix` | `msl/matrix.hpp` | Real/complex matrices, views, linear algebra, decompositions |
-| [signal](signal.md) | `msl::signal` | `msl/signal.hpp` | FFT, filter design, Butterworth IIR, zero-phase filtering, PSD, window functions |
-| [difference](difference.md) | `msl::difference` | `msl/difference.hpp` | Diff, gradient, Laplacian, divergence, curl, Savitzky-Golay |
-| [equation](equation.md) | `msl::equation` | `msl/equation.hpp` | One-dimensional nonlinear equation solvers |
-| [integral](integral.md) | `msl::integral` | `msl/integral.hpp` | Trapezoidal, Simpson, Romberg, adaptive quadrature |
-| [interp](interp.md) | `msl::interp` | `msl/interp.hpp` | 1D interpolation (linear, spline, Akima, PCHIP, nearest, polynomial) |
-| [ode](ode.md) | `msl::ode` | `msl/ode.hpp` | Fixed-step and adaptive ODE initial value solvers |
-| [polynomial](polynomial.md) | `msl::polynomial` | `msl/polynomial.hpp` | Polynomial class, least-squares fitting, evaluation |
-| [utils](utils.md) | `msl::utils` | — | File I/O, assert handler |
+## Quick start
 
-## Quick Start
+Save this example as `main.cpp`:
 
 ```cpp
-#include "msl/matrix.hpp"
-#include "msl/difference.hpp"
-#include "msl/integral.hpp"
-#include "msl/interp.hpp"
-#include "msl/equation.hpp"
-#include "msl/ode.hpp"
-#include "msl/signal/fft.hpp"
-#include "msl/signal/filter.hpp"
-#include "msl/signal/filtfilt.hpp"
+#include <iostream>
+#include <vector>
 
-// Create a 3x3 matrix (row-major initializer list → column-major storage)
-msl::matrix::matrixd A(3, 3, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+#include <msl/difference.hpp>
+#include <msl/equation.hpp>
+#include <msl/integral.hpp>
+#include <msl/interp.hpp>
+#include <msl/matrix.hpp>
+#include <msl/ode.hpp>
+#include <msl/polynomial.hpp>
+#include <msl/signal.hpp>
 
-// Transpose
-auto At = msl::matrix::transpose(A);
+int main() {
+    msl::matrix::matrixd A(2, 2, {3.0, 1.0, 1.0, 2.0});
+    const std::vector<double> b{9.0, 8.0};
+    const auto solution = msl::matrix::eigen_interface::solve(A, b);
+    std::cout << solution[0] << ", " << solution[1] << '\n'; // 2, 3
 
-// Matrix multiplication
-auto C = A * At;
+    const std::vector<double> x{0.0, 1.0, 2.0, 3.0};
+    const std::vector<double> y{0.0, 1.0, 4.0, 9.0};
+    const auto gradient = msl::difference::central_gradient(x, y);
+    const double area = msl::integral::trapz(x, y);
+    std::cout << gradient[1] << ", " << area << '\n'; // 2, 9.5
 
-// QR decomposition
-auto [Q, R] = msl::matrix::qr(A);
+    const auto interpolator = msl::interp::Linear::from_data(x, y);
+    const auto coefficients = msl::polynomial::polyfit(x, y, 2);
+    std::cout << interpolator(1.5) << ", "
+              << msl::polynomial::polyval(coefficients, 1.5) << '\n';
+    // 2.5, 2.25
 
-// Difference
-std::vector<double> y = {0.0, 1.0, 4.0, 9.0, 16.0};
-auto dy = msl::difference::diff(y); // {1.0, 3.0, 5.0, 7.0}
+    const auto spectrum = msl::signal::fft(y, 8); // zero-padded FFT
+    std::cout << spectrum.size() << '\n'; // 8
 
-// Integral
-auto integral = msl::integral::trapz(y, 1.0); // ≈ 21.5
-
-// Interpolation
-msl::interp::Linear interp;
-interp.set_data({0.0, 1.0, 2.0}, {0.0, 1.0, 4.0});
-double val = interp(1.5); // ≈ 2.5
-
-// Polynomial fitting
-auto coeffs = msl::polynomial::polyfit(
-    std::vector{0.0, 1.0, 2.0, 3.0},
-    std::vector{0.0, 1.0, 4.0, 9.0}, 2);
-// coeffs ≈ [0, 0, 1] → f(x) = x^2
-
-// Scalar nonlinear equation
-double root = msl::equation::brent_root(
-    [](double x) { return x * x - 2.0; }, 0.0, 2.0);
-
-// ODE initial value problem: y' = y, y(0) = 1
-auto y1 = msl::ode::rk4_final(
-    [](double, const msl::ode::state& y) { return msl::ode::state{y[0]}; },
-    std::vector<double>{1.0}, 0.0, 1.0, 0.01);
+    const double root = msl::equation::brent_root(
+        [](double value) { return value * value - 2.0; }, 0.0, 2.0);
+    const auto final_state = msl::ode::rk4_final(
+        [](double, const msl::ode::state &state) {
+            return msl::ode::state{state[0]};
+        },
+        std::vector<double>{1.0}, 0.0, 1.0, 0.01);
+    std::cout << root << ", " << final_state[0] << '\n'; // sqrt(2), exp(1)
+}
 ```
 
-## Dependency
+For a direct GCC build from the repository root with system Eigen on Linux:
 
-Only **Eigen3** is required. On Linux, install via `libeigen3-dev`. On Windows, use vcpkg manifest mode (`vcpkg.json`).
+```sh
+c++ -std=c++20 -O2 -Iinclude -Iinclude/msl -I/usr/include/eigen3 main.cpp -o example
+./example
+```
 
-## License
+Both MSL include roots are needed by the current headers. Xmake propagates
+these and the Eigen dependency through the `msl` target; see the
+[developer guide](developer-guide.md) for standalone and embedded builds.
 
-MSL is distributed under the MIT license. Eigen3, the sole dependency, is licensed under MPL 2.0. See `licenses/LICENSE` and `NOTICE.md`.
+## Further reading
+
+- [API compatibility](compatibility.md): replaced names and numerical behavior
+  to consider when updating existing callers.
+- [Testing](developer-guide.md#testing): unit assertions and numerical invariants.
+- [MATLAB validation](../matlab/validation/README.md): comparison data, runner,
+  and optional toolbox checks.
+- [Third-party notices](../NOTICE.md) and [Eigen license text](../licenses/LICENSE).

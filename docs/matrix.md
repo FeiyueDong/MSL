@@ -2,7 +2,7 @@
 
 **Namespace**: `msl::matrix`  
 **Aggregator**: `msl/matrix.hpp`  
-**Files**: 11 headers in `msl/matrix/`
+**Files**: 10 headers in `include/msl/matrix/`
 
 ## Overview
 
@@ -109,8 +109,13 @@ matrixd A(2, 3, data_span);            // deep copy from span
 matrixd A = matrixd::zeros(3, 3);      // factory: zeros
 matrixd B = matrixd::ones(3, 3);       // factory: ones
 matrixd I = matrixd::identity(4);      // factory: identity
-matrixd D = matrixd::diagonal({1,2,3});// factory: diagonal
+const std::vector<double> diagonal{1.0, 2.0, 3.0};
+matrixd D = matrixd::diagonal(diagonal); // factory: diagonal
 ```
+
+Initializer lists are interpreted row by row and converted to column-major
+storage. In contrast, the span constructor copies data already in column-major
+order. Both require exactly `rows * cols` values.
 
 ### Arithmetic
 
@@ -137,6 +142,7 @@ auto sub = A.submatrix_copy(r0, r1, c0, c1); // owning copy of a submatrix
 
 Copy accessors are explicitly named `*_copy`; for zero-copy access use
 `column(j)`, which returns a `std::span` into the column-major storage.
+Submatrix ranges are half-open: `[r0, r1)` and `[c0, c1)`.
 
 ## real_matrix_view (matrixd_view)
 
@@ -148,6 +154,11 @@ matrixd_view view(A);       // view into A
 view(0, 0) = 42.0;          // modifies A(0,0)
 matrixd copy = view.to_owned(); // deep copy
 ```
+
+Views and column spans borrow storage; keep the owner alive and do not resize
+it while using them. `subview(r0, r1, c0, c1)` supports only whole-column
+rectangles (`r0 == 0`, `r1 == rows()`) because a view is contiguous. An arbitrary
+rectangle requires `submatrix_copy()`.
 
 ## const_real_matrix_view (const_matrixd_view)
 
@@ -170,7 +181,9 @@ complex_matrix_base
   |-- complex_matrix_view
 ```
 
-Identical API to real matrices, with `std::complex<double>` element type.
+Complex matrices use `std::complex<double>` elements. Basic storage, arithmetic,
+copy accessors, and views follow the real-matrix conventions; decomposition
+overloads differ as described below.
 
 ## Matrix Operations
 
@@ -204,6 +217,9 @@ For economy QR, with `k = min(rows, cols)`, `Q` is `m×k` and `R` is `k×n`,
 satisfying `A ≈ Q*R` and `Q^T*Q ≈ I_k`. Full QR returns `Q` as `m×m` and `R`
 as `m×n`.
 
+The complex overload `qr(A)` returns full factors (`m×m` and `m×n`); the
+thin/full boolean selector belongs to the real overload.
+
 ### LU Decomposition
 
 ```cpp
@@ -223,6 +239,8 @@ auto [U, S, V] = msl::matrix::svd(A);
 // A = U * S * V^T
 ```
 `U` is `m×m`, `S` is `m×n` diagonal, `V` is `n×n`.
+The complex overload returns the same shapes and reconstructs
+`A = U * S * V^H` using `conjugate_transpose(V)`.
 
 For callers that only consume the leading singular triplets:
 
@@ -248,8 +266,13 @@ options.compute_right_vectors = false;
 auto leading = msl::matrix::truncated_svd(A, 30, options);
 ```
 
+The randomized path approximates the leading singular triplets. Repeated
+calls with the same input, options, and toolchain use the same random seed;
+this is not a promise of bitwise agreement across standard libraries.
 When `rank + oversampling` covers `min(m,n)`, the implementation falls back to
-an exact thin SVD. Non-finite input and invalid ranks are rejected.
+an exact thin SVD. The rank must be in `[1, min(m,n)]`, and input values must
+be finite; violations throw `std::invalid_argument`. With right vectors
+enabled, `V` is `n×rank`; otherwise it is an empty matrix.
 
 ### Moore-Penrose Pseudoinverse
 
@@ -261,6 +284,8 @@ auto A_rank = msl::matrix::pinv(A, 1e-8); // explicit singular-value tolerance
 The output is `n×m` for an `m×n` input. The default tolerance is
 `max(m,n) * epsilon * largest_singular_value`; singular values less than or
 equal to the selected tolerance are discarded.
+The tolerance is an absolute singular-value threshold and must be
+non-negative. The current `pinv` overloads accept real matrices.
 
 ### Eigenvalue Decomposition
 
@@ -291,9 +316,15 @@ auto msl_mat = msl::matrix::eigen_interface::from_eigen(eig_matrix);
 ### Convenience Functions
 
 ```cpp
-auto C = msl::matrix::matmul(A, B);     // matrix multiply
-auto y = msl::matrix::matvec(A, x);     // matrix-vector multiply
-auto x = msl::matrix::solve(A, b);      // solve Ax = b (via Eigen)
+auto C = msl::matrix::eigen_interface::matmul(A, B);
+auto y = msl::matrix::eigen_interface::matvec(A, x);
+auto solution = msl::matrix::eigen_interface::solve(A, b);
 ```
+
+These helpers accept owning real matrices (`matrixd`); vector arguments are
+`std::vector<double>`. `solve` requires a square matrix and a matching
+right-hand side and uses LU directly. Prefer it to `inverse(A) * b` when
+solving a linear system. It does not provide rank or conditioning diagnostics;
+use an appropriate decomposition or `pinv` when rank deficiency is intended.
 
 The `view_from_eigen()` function creates MSL views from Eigen data. Rvalue overloads are deleted to prevent dangling references.

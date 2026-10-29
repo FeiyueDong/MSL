@@ -72,7 +72,9 @@ Piecewise linear interpolation between consecutive data points.
 
 ```cpp
 msl::interp::Linear interp;
-interp.set_data({0.0, 1.0, 2.0}, {0.0, 1.0, 4.0});
+const std::vector<double> x{0.0, 1.0, 2.0};
+const std::vector<double> y{0.0, 1.0, 4.0};
+interp.set_data(x, y);
 double val = interp(1.5);  // ≈ 2.5
 ```
 
@@ -88,6 +90,12 @@ msl::interp::CubicSpline interp;
 interp.set_data(x, y);
 double val = interp(3.14);
 ```
+
+`derivative(x)` and `second_derivative(x)` evaluate the piecewise polynomial's
+first and second derivatives. Both data endpoints are valid: the right
+endpoint uses the last interval, indexed `n-2`. Cubic splines require at least
+three samples; with three samples the current Not-a-knot implementation falls
+back to Natural boundary conditions.
 
 ### Akima
 

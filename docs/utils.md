@@ -1,6 +1,6 @@
 # Utilities Module
 
-**Namespace**: `msl::utils`  
+**Namespaces**: `msl::utils` (data I/O), `msl` (assert handler)
 **Files**: 2 headers in `msl/utils/`
 
 ## Overview
@@ -9,7 +9,8 @@ The utils module provides small utility functions used across the library: file 
 
 ## Data I/O (`data_io.hpp`)
 
-Simple text-based file I/O for numerical data stored in column-major format.
+Text files contain rows of whitespace-separated values; the in-memory vector
+is column-major. Include `msl/utils/data_io.hpp` directly.
 
 ### Reading
 
@@ -35,6 +36,11 @@ msl::utils::WriteComplexData("output.txt", complex_data, num_cols, num_rows);
 // Read entire JSON file as string
 std::string json = msl::utils::ReadJson("config.json");
 ```
+
+`ReadJson` reads text; it does not parse or validate JSON. If a file cannot be
+opened, the readers log to `stderr` and return an empty vector or string;
+writers log the failure and return. These legacy helpers do not throw an
+exception on an open failure.
 
 ## Assert Handler (`msl_assert.hpp`)
 

@@ -8,7 +8,17 @@
 
 The difference module provides numerical differentiation for 1D vectors and 2D matrices: first-order differences, forward/central gradients, second derivatives, Laplacian, divergence, curl, and Savitzky-Golay smoothed derivatives.
 
-All functions follow the zero-copy API pattern: overloads that accept an output span, and convenience overloads that return `std::vector<double>` or `matrix::matrixd`.
+Vector routines provide output-span and allocating overloads; matrix routines
+return owning matrices. Output sizes depend on the selected operation.
+
+## Input validation
+
+`diff`, forward gradients, and central gradients require at least two samples
+along the differentiated axis. Second derivatives require at least three.
+Uniform spacing must be positive; non-uniform coordinates must be strictly
+increasing and match the selected axis length. Invalid sizes, coordinates,
+spacing, or axes throw `std::invalid_argument`. Shortened-output overloads
+validate the input length before allocating.
 
 ## Difference (First-Order)
 
@@ -67,6 +77,14 @@ grad[i] = (dx_left * (y[i+1] - y[i]) / dx_right
          / (dx_left + dx_right)
 ```
 
+The matrix overload uses the same formula for both axes: `axis=0`
+differentiates down rows using one coordinate per row; `axis=1` differentiates
+across columns using one coordinate per column. Interior derivatives are exact
+for a quadratic sampled on a non-uniform grid.
+
+For vector inputs, the argument order is `forward_gradient(y, x)` but
+`central_gradient(x, y)`; keep this distinction when changing methods.
+
 ## 2D Gradient
 
 Returns both horizontal and vertical gradients as a pair.
@@ -115,7 +133,10 @@ auto curl_z = msl::difference::curl(Fx, Fy, dx, dy);
 
 ## Savitzky-Golay Gradient
 
-Smoothed derivative using local polynomial fitting. More robust to noise than raw finite differences.
+Smoothed first derivative using a local polynomial least-squares fit. Interior
+points use centered derivative weights; endpoints differentiate a polynomial
+fit to the first or last complete window. This is a polynomial derivative,
+rather than an average of adjacent finite differences.
 
 ```cpp
 auto grad = msl::difference::savgol_gradient(y, window_size, poly_order, dx);
@@ -124,6 +145,6 @@ msl::difference::savgol_gradient(y, grad, window_size, poly_order, dx);  // zero
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `window_size` | `5` | Window size (must be odd, >= 3) |
-| `poly_order` | `2` | Polynomial order (< window_size) |
+| `window_size` | `5` | Odd window size, at least 5 and no larger than the input |
+| `poly_order` | `2` | Non-negative polynomial order, less than `window_size` |
 | `dx` | `1.0` | Spacing |

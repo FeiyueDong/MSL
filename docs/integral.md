@@ -119,6 +119,6 @@ double I = msl::integral::quad(f, a, b, tol, max_depth);
 
 The function recursively subdivides the interval until the error estimate `|S_acb - S_ab| / 15 < tol`. Tolerance is halved at each recursion level.
 
-`adaptive_simpson_quadrature.hpp` and `cumtrapz.hpp` are compatibility headers.
-New code should include `adaptive_simpson.hpp` and `trapz.hpp` directly when
-including algorithm-specific headers.
+Include `msl/integral.hpp` for the full module. For individual algorithms,
+`msl/integral/trapz.hpp` provides both `trapz` and `cumtrapz`, and
+`msl/integral/adaptive_simpson.hpp` provides `adaptive_simpson` and `quad`.
