@@ -14,6 +14,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cmath>
+#include <limits>
 #include <cstdlib>
 #include <numeric>
 #include <span>
@@ -78,6 +80,64 @@ inline std::vector<double> xcov_unbiased(std::span<const double> x,
             "Unbiased cross-covariance: signals must not be empty");
     }
     return xcov_unbiased(x, y, x.size() - 1);
+}
+
+/**
+ * Overlap-local Pearson correlation at lags [-max_lag, +max_lag].
+ * Positive k compares x[n+k] with y[n]. Inputs must be equal-length,
+ * finite, N >= 2, max_lag <= N-2. Zero overlap variance returns NaN.
+ * Direct O(N * max_lag) evaluation; no FFT or interpolation.
+ */
+inline std::vector<double> xcorr_normalized(std::span<const double> x,
+                                           std::span<const double> y,
+                                           std::size_t max_lag) {
+    if (x.size() != y.size() || x.size() < 2 || max_lag > x.size() - 2
+        || max_lag > (std::numeric_limits<std::size_t>::max() - 1) / 2
+        || x.size() > static_cast<std::size_t>(
+                           std::numeric_limits<std::ptrdiff_t>::max()))
+        throw std::invalid_argument("Normalized cross-correlation: invalid lengths/lag");
+    double sx = 0., sy = 0.;
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        if (!std::isfinite(x[i]) || !std::isfinite(y[i]))
+            throw std::invalid_argument("Normalized cross-correlation: finite inputs required");
+        sx = std::max(sx, std::abs(x[i]));
+        sy = std::max(sy, std::abs(y[i]));
+    }
+    // Scale before centering to prevent overflow for finite large amplitudes.
+    std::vector<double> a(x.size()), b(y.size());
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        a[i] = sx == 0. ? 0. : x[i] / sx;
+        b[i] = sy == 0. ? 0. : y[i] / sy;
+    }
+    std::vector<double> result(2 * max_lag + 1,
+                               std::numeric_limits<double>::quiet_NaN());
+    const auto limit = static_cast<std::ptrdiff_t>(max_lag);
+    for (auto k = -limit; k <= limit; ++k) {
+        const auto ax = k > 0 ? static_cast<std::size_t>(k) : 0;
+        const auto by = k < 0 ? static_cast<std::size_t>(-k) : 0;
+        const auto count = x.size() - static_cast<std::size_t>(std::abs(k));
+        // Anchor each overlap at its first value. Constant overlaps stay
+        // exactly zero even when summing a non-binary-representable value.
+        double mx = 0., my = 0.;
+        for (std::size_t n = 0; n < count; ++n) {
+            mx += a[ax+n] - a[ax];
+            my += b[by+n] - b[by];
+        }
+        mx /= static_cast<double>(count);
+        my /= static_cast<double>(count);
+        double xx = 0., yy = 0., xy = 0.;
+        for (std::size_t n = 0; n < count; ++n) {
+            const double dx = (a[ax+n] - a[ax]) - mx;
+            const double dy = (b[by+n] - b[by]) - my;
+            xx += dx*dx;
+            yy += dy*dy;
+            xy += dx*dy;
+        }
+        if (xx > 0. && yy > 0.)
+            result[static_cast<std::size_t>(k+limit)] =
+                std::clamp((xy / std::sqrt(xx)) / std::sqrt(yy), -1., 1.);
+    }
+    return result;
 }
 
 } // namespace msl::signal

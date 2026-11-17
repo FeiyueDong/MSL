@@ -353,3 +353,14 @@ auto detrended = msl::signal::detrend(data_matrix, n);
 ```
 
 Internally uses `msl::polynomial::Polynomial` for least-squares fitting via QR decomposition.
+
+### Overlap-normalized cross-correlation
+
+`xcorr_normalized(x, y, max_lag)` returns Pearson coefficients ordered
+`[-max_lag, +max_lag]`. Positive lag compares `x[n+k]` with `y[n]`.
+Each overlap has its own mean and variance; this is not `xcov_unbiased`
+divided by full-record standard deviations. Inputs must be finite,
+equal length, at least two samples, with `max_lag <= N-2`; invalid
+arguments throw `std::invalid_argument`. A constant overlap gives NaN.
+Swapping inputs reverses the lag sequence. The implementation directly
+scans finite lags in O(N * max_lag) time; benchmark large pair sets.

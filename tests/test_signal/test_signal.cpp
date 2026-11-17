@@ -578,8 +578,38 @@ int test_windows_and_filter() {
     return 0;
 }
 
+int test_normalized_correlation() {
+    const std::vector<double> x{2., -1., 4., 0., 3., -2., 5., 1.};
+    const std::vector<double> y{4., 0., 3., -2., 5., 1., 9., -3.};
+    auto same = signal::xcorr_normalized(x, x, 2);
+    EXPECT_NEAR(same[2], 1., 1e-12);
+    auto neg = x;
+    for (auto &v : neg) v = -v;
+    EXPECT_NEAR(signal::xcorr_normalized(x, neg, 0)[0], -1., 1e-12);
+    auto ab = signal::xcorr_normalized(x, y, 2);
+    auto ba = signal::xcorr_normalized(y, x, 2);
+    EXPECT_NEAR(ab[4], 1., 1e-12); // x[n+2] == y[n].
+    for (size_t i = 0; i < ab.size(); ++i)
+        EXPECT_NEAR(ab[i], ba[ab.size()-1-i], 1e-12);
+    const std::vector<double> constant(x.size(), 0.1);
+    EXPECT_TRUE(std::isnan(signal::xcorr_normalized(x, constant, 2)[0]));
+    const std::vector<double> partly_constant{1., 1., 1., 1., 1., 1., 2., 3.};
+    EXPECT_TRUE(std::isnan(signal::xcorr_normalized(partly_constant, x, 2)[0]));
+    bool rejected = false;
+    try { signal::xcorr_normalized(x, x, x.size()-1); }
+    catch (const std::invalid_argument &) { rejected = true; }
+    EXPECT_TRUE(rejected);
+    auto invalid = x;
+    invalid[0] = std::numeric_limits<double>::infinity();
+    rejected = false;
+    try { signal::xcorr_normalized(invalid, x, 0); }
+    catch (const std::invalid_argument &) { rejected = true; }
+    EXPECT_TRUE(rejected);
+    return 0;
+}
+
 int main() {
-    int result = test_fft() + test_fft_matrix_roundtrip()
+    int result = test_normalized_correlation() + test_fft() + test_fft_matrix_roundtrip()
                  + test_butterworth_lowpass_highpass()
                  + test_butterworth_bandpass() + test_butterworth_bandstop()
                  + test_filtfilt_startup_state() + test_filtfilt_scipy_regression()
