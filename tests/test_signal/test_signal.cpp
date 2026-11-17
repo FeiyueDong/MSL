@@ -591,6 +591,9 @@ int test_normalized_correlation() {
     EXPECT_NEAR(ab[4], 1., 1e-12); // x[n+2] == y[n].
     for (size_t i = 0; i < ab.size(); ++i)
         EXPECT_NEAR(ab[i], ba[ab.size()-1-i], 1e-12);
+    const std::vector<double> wide_x{1e308, 1e-308, 2e-308, 3e-308, 4e-308};
+    const std::vector<double> wide_y{1e-308, 2e-308, 3e-308, 4e-308, 8e307};
+    EXPECT_NEAR(signal::xcorr_normalized(wide_x, wide_y, 1)[2], 1., 1e-12);
     const std::vector<double> constant(x.size(), 0.1);
     EXPECT_TRUE(std::isnan(signal::xcorr_normalized(x, constant, 2)[0]));
     const std::vector<double> partly_constant{1., 1., 1., 1., 1., 1., 2., 3.};

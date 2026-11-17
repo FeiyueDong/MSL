@@ -96,19 +96,16 @@ inline std::vector<double> xcorr_normalized(std::span<const double> x,
         || x.size() > static_cast<std::size_t>(
                            std::numeric_limits<std::ptrdiff_t>::max()))
         throw std::invalid_argument("Normalized cross-correlation: invalid lengths/lag");
-    double sx = 0., sy = 0.;
-    for (std::size_t i = 0; i < x.size(); ++i) {
+    for (std::size_t i = 0; i < x.size(); ++i)
         if (!std::isfinite(x[i]) || !std::isfinite(y[i]))
             throw std::invalid_argument("Normalized cross-correlation: finite inputs required");
-        sx = std::max(sx, std::abs(x[i]));
-        sy = std::max(sy, std::abs(y[i]));
-    }
-    // Scale before centering to prevent overflow for finite large amplitudes.
-    std::vector<double> a(x.size()), b(y.size());
-    for (std::size_t i = 0; i < x.size(); ++i) {
-        a[i] = sx == 0. ? 0. : x[i] / sx;
-        b[i] = sy == 0. ? 0. : y[i] / sy;
-    }
+    // Same-sign subtraction preserves small changes on a large DC offset.
+    // Opposite-sign values are scaled first to avoid subtraction overflow.
+    const auto delta = [](double value, double anchor, double scale) {
+        if (scale == 0.) return 0.;
+        return std::signbit(value) == std::signbit(anchor)
+                   ? (value-anchor)/scale : value/scale-anchor/scale;
+    };
     std::vector<double> result(2 * max_lag + 1,
                                std::numeric_limits<double>::quiet_NaN());
     const auto limit = static_cast<std::ptrdiff_t>(max_lag);
@@ -116,19 +113,25 @@ inline std::vector<double> xcorr_normalized(std::span<const double> x,
         const auto ax = k > 0 ? static_cast<std::size_t>(k) : 0;
         const auto by = k < 0 ? static_cast<std::size_t>(-k) : 0;
         const auto count = x.size() - static_cast<std::size_t>(std::abs(k));
-        // Anchor each overlap at its first value. Constant overlaps stay
+        double sx = 0., sy = 0.;
+        for (std::size_t n = 0; n < count; ++n) {
+            sx = std::max(sx, std::abs(x[ax+n]));
+            sy = std::max(sy, std::abs(y[by+n]));
+        }
+        // Scale each overlap separately: extreme samples outside it must
+        // not erase its variation. Anchor each overlap at its first value. Constant overlaps stay
         // exactly zero even when summing a non-binary-representable value.
         double mx = 0., my = 0.;
         for (std::size_t n = 0; n < count; ++n) {
-            mx += a[ax+n] - a[ax];
-            my += b[by+n] - b[by];
+            mx += delta(x[ax+n], x[ax], sx);
+            my += delta(y[by+n], y[by], sy);
         }
         mx /= static_cast<double>(count);
         my /= static_cast<double>(count);
         double xx = 0., yy = 0., xy = 0.;
         for (std::size_t n = 0; n < count; ++n) {
-            const double dx = (a[ax+n] - a[ax]) - mx;
-            const double dy = (b[by+n] - b[by]) - my;
+            const double dx = delta(x[ax+n], x[ax], sx) - mx;
+            const double dy = delta(y[by+n], y[by], sy) - my;
             xx += dx*dx;
             yy += dy*dy;
             xy += dx*dy;
