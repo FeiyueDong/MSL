@@ -98,7 +98,10 @@ auto integrals = msl::integral::romberg(x, mat, tol);
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `tol` | `1e-10` | Convergence tolerance |
+| `tol` | `1e-10` | Convergence tolerance for callable integrands |
+
+The sampled overloads always use the full grid. They retain `tol` for source
+compatibility and require a positive, finite value.
 
 ## Adaptive Simpson Quadrature
 
@@ -117,7 +120,11 @@ double I = msl::integral::quad(f, a, b, tol, max_depth);
 | `tol` | `1e-8` | Tolerance |
 | `max_depth` | `50` | Maximum recursion depth |
 
-The function recursively subdivides the interval until the error estimate `|S_acb - S_ab| / 15 < tol`. Tolerance is halved at each recursion level.
+The function subdivides until the error estimate meets the local tolerance or
+the depth limit is reached. It halves the tolerance at each recursion level
+and returns the corrected estimate at the depth limit. A non-finite integrand
+or estimate raises `std::runtime_error`. The same exception is raised if
+another subdivision is needed and there is no representable midpoint.
 
 Include `msl/integral.hpp` for the full module. For individual algorithms,
 `msl/integral/trapz.hpp` provides both `trapz` and `cumtrapz`, and

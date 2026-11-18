@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -95,6 +96,24 @@ int test_integral() {
     std::vector<double> romberg_y{0.0, 1.0, 4.0, 9.0, 16.0};
     EXPECT_NEAR(integral::romberg(romberg_y, 1.0), 64.0 / 3.0, 1e-12);
     EXPECT_NEAR(integral::romberg(romberg_x, romberg_y), 64.0 / 3.0, 1e-12);
+    // The first two levels see only zeros. The final level uses every sample.
+    const std::vector<double> alternating{0.0, 1.0, 0.0, 1.0, 0.0};
+    EXPECT_NEAR(integral::romberg(alternating, 0.25), 32.0 / 45.0, 1e-12);
+    bool nonfinite_rejected = false;
+    try {
+        (void)integral::quad(
+            [](double x) {
+                return x == 0.25 ? std::numeric_limits<double>::quiet_NaN()
+                                 : x * x;
+            },
+            0.0,
+            1.0,
+            1e-8,
+            2);
+    } catch (const std::runtime_error &) {
+        nonfinite_rejected = true;
+    }
+    EXPECT_TRUE(nonfinite_rejected);
     EXPECT_NEAR(
         integral::romberg([](double x) { return std::sin(x); }, 0.0, pi, 1e-12),
         2.0,

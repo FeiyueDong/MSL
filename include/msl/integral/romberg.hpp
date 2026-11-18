@@ -57,16 +57,23 @@ inline void validate_uniform_spacing(std::span<const double> x) {
     }
 
     double dx = x[1] - x[0];
-    if (dx <= 0.0) {
+    if (!std::isfinite(dx) || dx <= 0.0) {
         throw std::invalid_argument(
             "Romberg: x values must be strictly increasing");
     }
 
-    double scale = std::max(1.0, std::abs(dx));
-    double tol = 64.0 * std::numeric_limits<double>::epsilon() * scale;
+    const double spacing_tol =
+        64.0 * std::numeric_limits<double>::epsilon() * dx;
+    const double initial_scale = std::max(std::abs(x[0]), std::abs(x[1]));
     for (size_t i = 2; i < x.size(); ++i) {
         double current_dx = x[i] - x[i - 1];
-        if (current_dx <= 0.0 || std::abs(current_dx - dx) > tol) {
+        const double coord_scale =
+            std::max({initial_scale, std::abs(x[i]), std::abs(x[i - 1])});
+        const double tol = spacing_tol
+                           + 2.0 * std::numeric_limits<double>::epsilon()
+                                 * coord_scale;
+        if (!std::isfinite(current_dx) || current_dx <= 0.0
+            || std::abs(current_dx - dx) > tol) {
             throw std::invalid_argument(
                 "Romberg: x values must be uniformly spaced");
         }
@@ -86,16 +93,17 @@ inline void validate_uniform_spacing(std::span<const double> x) {
  *
  * @param y Function values (size must be 2^k + 1)
  * @param dx Uniform spacing
- * @param tol Tolerance for convergence (default: 1e-10)
+ * @param tol Positive finite value retained for source compatibility
  * @return Integral value
  */
 inline double
 romberg(std::span<const double> y, double dx, double tol = 1e-10) {
-    if (dx <= 0.0) {
-        throw std::invalid_argument("Romberg: dx must be positive");
+    if (!std::isfinite(dx) || dx <= 0.0) {
+        throw std::invalid_argument("Romberg: dx must be finite and positive");
     }
-    if (tol <= 0.0) {
-        throw std::invalid_argument("Romberg: tolerance must be positive");
+    if (!std::isfinite(tol) || tol <= 0.0) {
+        throw std::invalid_argument(
+            "Romberg: tolerance must be finite and positive");
     }
 
     size_t n = y.size();
@@ -112,6 +120,7 @@ romberg(std::span<const double> y, double dx, double tol = 1e-10) {
     R[0][0] =
         0.5 * (y.front() + y.back()) * dx * static_cast<double>(intervals);
 
+    // Agreement on coarse grids cannot rule out variation in finer samples.
     for (size_t i = 1; i <= k; ++i) {
         size_t panels = size_t{1} << i;
         size_t stride = intervals / panels;
@@ -127,10 +136,6 @@ romberg(std::span<const double> y, double dx, double tol = 1e-10) {
             R[i][j] = (power * R[i][j - 1] - R[i - 1][j - 1]) / (power - 1.0);
             power *= 4.0;
         }
-
-        if (std::abs(R[i][i] - R[i - 1][i - 1]) < tol) {
-            return R[i][i];
-        }
     }
 
     return R[k][k];
@@ -141,7 +146,7 @@ romberg(std::span<const double> y, double dx, double tol = 1e-10) {
  *
  * @param x Independent variable values, uniformly spaced
  * @param y Function values at x points
- * @param tol Tolerance for convergence
+ * @param tol Positive finite value retained for source compatibility
  * @return Integral value
  */
 inline double romberg(std::span<const double> x,
@@ -229,7 +234,7 @@ inline double romberg(Func &&f,
  * @param result Output buffer for integral values (must have same size as
  * number of columns)
  * @param dx Spacing between rows
- * @param tol Tolerance for convergence (default: 1e-10)
+ * @param tol Positive finite value retained for source compatibility
  */
 inline void romberg(const matrix::real_matrix_base &mat,
                     std::span<double> result,
@@ -259,7 +264,7 @@ inline void romberg(const matrix::real_matrix_base &mat,
  * @param x Independent variable values, uniformly spaced
  * @param mat Input matrix
  * @param result Output buffer for integral values
- * @param tol Tolerance for convergence
+ * @param tol Positive finite value retained for source compatibility
  */
 inline void romberg(std::span<const double> x,
                     const matrix::real_matrix_base &mat,
@@ -294,7 +299,7 @@ inline void romberg(std::span<const double> x,
  *
  * @param mat Input matrix (each column is a function, rows must be 2^k + 1)
  * @param dx Spacing between rows
- * @param tol Tolerance for convergence (default: 1e-10)
+ * @param tol Positive finite value retained for source compatibility
  * @return Vector of integral values for each column
  */
 inline std::vector<double>
@@ -309,7 +314,7 @@ romberg(const matrix::real_matrix_base &mat, double dx, double tol = 1e-10) {
  *
  * @param x Independent variable values, uniformly spaced
  * @param mat Input matrix
- * @param tol Tolerance for convergence
+ * @param tol Positive finite value retained for source compatibility
  * @return Vector of integral values for each column
  */
 inline std::vector<double> romberg(std::span<const double> x,

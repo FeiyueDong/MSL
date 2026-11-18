@@ -88,6 +88,16 @@ int test_ode() {
     limited.max_steps = 2;
     auto limited_result = ode::rk4(exponential, y0, 0.0, 1.0, 0.1, limited);
     EXPECT_EQ(limited_result.status, ode::ode_status::max_steps);
+    constexpr double large_time = 1e16;
+    const std::vector<double> large_time_eval{large_time, large_time + 10.0};
+    const auto fixed_stalled =
+        ode::rk4_eval(exponential, y0, large_time_eval, 0.1, limited);
+    const auto adaptive_stalled =
+        ode::ode45(exponential, y0, large_time, large_time + 10.0, limited);
+    EXPECT_EQ(fixed_stalled.status, ode::ode_status::step_size_underflow);
+    EXPECT_EQ(adaptive_stalled.status, ode::ode_status::step_size_underflow);
+    EXPECT_EQ(fixed_stalled.steps, 0u);
+    EXPECT_EQ(adaptive_stalled.steps, 0u);
     bool value_threw = false;
     try {
         (void)limited_result.value();

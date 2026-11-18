@@ -158,7 +158,8 @@ unnormalized coefficients.
 ## Filter Application (`filter.hpp`)
 
 Causal Direct Form II Transposed IIR filtering with zero initial state.
-The filter normalizes numerator and denominator by `a[0]` when needed.
+Supply coefficients with `a[0] == 1`. An order-zero filter applies the
+constant gain `b[0]` to every sample.
 
 ```cpp
 auto filtered = msl::signal::filter(signal, coeffs);  // convenience
@@ -190,6 +191,8 @@ auto filtered_mat = msl::signal::filtfilt_columns(signal_matrix, coeffs);
 Let `p = max(a.size(), b.size()) - 1`. The input length must exceed `3*p`;
 otherwise `filtfilt` throws `std::invalid_argument`. Both ends use odd
 reflection with `3*p` samples. The output span must match the input length.
+Both coefficient arrays must be nonempty. A finite, nonzero `a[0]` is used
+to normalize the coefficients before the initial-state solve and both passes.
 
 The internal initial state solves the steady-state equation `(I-A)*zi = B`,
 where `A` is the transposed direct-form state matrix and
@@ -247,7 +250,12 @@ auto highpassed = msl::signal::fourier_highpass(signal, fc_low);
 auto bandstopped = msl::signal::fourier_bandstop(signal, fc_low, fc_high);
 ```
 
-Window types: `rectangular`, `hamming`, `hanning`, `blackman`. Transition band creates smooth rolloff between passband and stopband.
+For a tapered window, `transition_band` is the half-width around each cutoff
+in normalized Nyquist units. The `hamming` and `hanning` half-windows give
+the same gain curve after scaling their endpoints to 0 and 1.
+Bandpass multiplies the two edge gains, including where the transitions
+overlap. Bandstop uses the complement of that product. A rectangular window
+or zero transition width gives a sharp cutoff.
 
 ## Power Spectral Density (`power_spectral_density.hpp`)
 

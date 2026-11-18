@@ -555,6 +555,31 @@ int test_windows_and_filter() {
         EXPECT_NEAR(filtered[i], expected[i], 1e-12);
     }
 
+    const auto amplified = signal::filter(input, {{2.0}, {1.0}});
+    const std::vector<double> constant(input.size(), 3.0);
+    const auto zero_phase = signal::filtfilt(constant, {{1.0}, {2.0, -1.0}});
+    for (size_t i = 0; i < input.size(); ++i) {
+        EXPECT_NEAR(amplified[i], 2.0 * input[i], 1e-12);
+        EXPECT_NEAR(zero_phase[i], constant[i], 1e-12);
+    }
+
+    // An impulse has unit gain in every FFT bin.
+    std::vector<double> impulse(16, 0.0);
+    impulse.front() = 1.0;
+    using FourierFilter = signal::FourierDomainFilter;
+    auto lowpass =
+        FourierFilter::lowpass(0.5, FourierFilter::WindowType::hanning, 0.25);
+    const auto copied_lowpass = lowpass;
+    lowpass.set_transition_band(0.0);
+    const auto gain = signal::fft(copied_lowpass.apply(impulse));
+    EXPECT_CPLX_NEAR(gain[2], std::complex<double>(1.0, 0.0), 1e-12);
+    EXPECT_CPLX_NEAR(gain[4], std::complex<double>(0.5, 0.0), 1e-12);
+    EXPECT_CPLX_NEAR(
+        gain[5],
+        std::complex<double>(0.5 * (1.0 - std::cos(std::numbers::pi / 4)), 0.0),
+        1e-12);
+    EXPECT_CPLX_NEAR(gain[6], std::complex<double>(0.0, 0.0), 1e-12);
+
     matrix::matrixd mat(4, 2);
     for (size_t i = 0; i < mat.rows(); ++i) {
         mat(i, 0) = input[i];

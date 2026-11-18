@@ -51,7 +51,7 @@ inline void filter(std::span<const double> signal,
         throw std::invalid_argument("Filter: coefficients cannot be empty");
     }
 
-    if (std::abs(coeffs.a[0] - 1.0) > 1e-10) {
+    if (!(std::abs(coeffs.a[0] - 1.0) <= 1e-10)) {
         throw std::invalid_argument(
             "Filter: first denominator coefficient must be 1.0");
     }
@@ -71,7 +71,7 @@ inline void filter(std::span<const double> signal,
         result[i] = (nb > 0 ? coeffs.b[0] : 0.0) * x + (nz > 0 ? z[0] : 0.0);
 
         // Update state vector
-        for (size_t j = 0; j < nz - 1; ++j) {
+        for (size_t j = 0; j + 1 < nz; ++j) {
             double bj = (j + 1 < nb) ? coeffs.b[j + 1] : 0.0;
             double aj = (j + 1 < na) ? coeffs.a[j + 1] : 0.0;
             z[j] = bj * x - aj * result[i] + z[j + 1];

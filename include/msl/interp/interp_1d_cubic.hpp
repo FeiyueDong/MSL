@@ -16,6 +16,8 @@
 #ifndef MSL_INTERP_1D_CUBIC
 #define MSL_INTERP_1D_CUBIC
 
+#include <cmath>
+
 #include "interp_1d_base.hpp"
 
 namespace msl::interp {
@@ -248,9 +250,11 @@ private:
             U(N_reduced, 0.0), B(N_reduced, 0.0);
 
         // Construct the strictly tridiagonal reduced system
-        D[0] = (h[0] + h[1]) * (h[0] + 2.0 * h[1]);
-        U[0] = h[1] * h[1] - h[0] * h[0];
-        B[0] = h[1] * alpha[1];
+        // Divide the boundary rows by the adjacent span to avoid squared
+        // spacings. The reduced system remains strictly diagonally dominant.
+        D[0] = h[0] + 2.0 * h[1];
+        U[0] = h[1] - h[0];
+        B[0] = (h[1] / (h[0] + h[1])) * alpha[1];
 
         for (size_t i = 1; i < N_reduced - 1; ++i) {
             L[i] = h[i];
@@ -259,9 +263,10 @@ private:
             B[i] = alpha[i + 1];
         }
 
-        L[N_reduced - 1] = h[n - 3] * h[n - 3] - h[n - 2] * h[n - 2];
-        D[N_reduced - 1] = (h[n - 3] + h[n - 2]) * (h[n - 2] + 2.0 * h[n - 3]);
-        B[N_reduced - 1] = h[n - 3] * alpha[n - 2];
+        L[N_reduced - 1] = h[n - 3] - h[n - 2];
+        D[N_reduced - 1] = h[n - 2] + 2.0 * h[n - 3];
+        B[N_reduced - 1] =
+            (h[n - 3] / (h[n - 3] + h[n - 2])) * alpha[n - 2];
 
         // Solve the reduced (N-2) x (N-2) system
         std::vector<double> c_sol = solve_tridiagonal(L, D, U, B);
@@ -284,9 +289,9 @@ private:
         std::vector<double> cp(n); // c-prime
         std::vector<double> bp(n); // B-prime
 
-        if (std::abs(D[0]) < 1e-14) {
+        if (D[0] == 0.0 || !std::isfinite(D[0])) {
             throw std::runtime_error(
-                "Zero pivot encountered in Thomas algorithm.");
+                "Invalid pivot encountered in tridiagonal solver.");
         }
 
         // Forward elimination
@@ -295,9 +300,9 @@ private:
 
         for (size_t i = 1; i < n; i++) {
             double denom = D[i] - L[i] * cp[i - 1];
-            if (std::abs(denom) < 1e-14) {
+            if (denom == 0.0 || !std::isfinite(denom)) {
                 throw std::runtime_error(
-                    "Division by zero in tridiagonal solver.");
+                    "Invalid pivot encountered in tridiagonal solver.");
             }
             if (i < n - 1)
                 cp[i] = U[i] / denom;

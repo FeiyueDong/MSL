@@ -17,6 +17,7 @@
 #define MSL_FILTFILT_HPP
 
 #include <algorithm>
+#include <cmath>
 #include <eigen3/Eigen/Core>
 #include <span>
 #include <stdexcept>
@@ -41,7 +42,7 @@ namespace internal {
  * Computes initial filter state to minimize startup transients
  * Based on MATLAB's filtfilt implementation
  *
- * @param coeffs Filter coefficients
+ * @param coeffs Filter coefficients normalized to a[0] == 1
  * @return Initial conditions for filtfilt
  */
 inline std::vector<double>
@@ -118,34 +119,15 @@ compute_filtfilt_zi(const FilterCoefficients &coeffs) {
  * Used for both forward and backward filtering in filtfilt
  *
  * @param signal Input signal
- * @param coeffs Filter coefficients
+ * @param coeffs Filter coefficients normalized to a[0] == 1
  * @param zi Initial conditions
  * @return Filtered signal
  */
 inline std::vector<double> filter_with_zi(std::span<const double> signal,
                                           const FilterCoefficients &coeffs,
                                           std::vector<double> zi) {
-    if (coeffs.a.empty()) {
-        throw std::invalid_argument(
-            "Filtfilt: feedback filter coefficients are empty");
-    }
-
-    // Normalize coefficients (ensure a[0] = 1.0)
     std::vector<double> a = coeffs.a;
     std::vector<double> b = coeffs.b;
-
-    double a0 = a[0];
-    if (a0 == 0.0) {
-        throw std::invalid_argument(
-            "Filtfilt: first feedback coefficient must be non-zero");
-    }
-
-    if (a0 != 1.0) {
-        for (auto &val : a)
-            val /= a0;
-        for (auto &val : b)
-            val /= a0;
-    }
 
     const size_t input_size = signal.size();
     size_t filter_order = std::max(a.size(), b.size());
@@ -197,6 +179,16 @@ inline void filtfilt(std::span<const double> signal,
         throw std::invalid_argument(
             "FiltFilt: input and output spans must have the same size");
     }
+    if (coeffs.a.empty() || coeffs.b.empty()) {
+        throw std::invalid_argument("Filtfilt: coefficients cannot be empty");
+    }
+
+    const double a0 = coeffs.a.front();
+    if (a0 == 0.0 || !std::isfinite(a0)) {
+        throw std::invalid_argument(
+            "Filtfilt: first denominator coefficient must be finite and "
+            "nonzero");
+    }
 
     const int len = static_cast<int>(signal.size());
     const int nfilt =
@@ -208,8 +200,18 @@ inline void filtfilt(std::span<const double> signal,
                                     "length > 3 * filter_order");
     }
 
-    // Compute initial conditions
-    auto zi_base = internal::compute_filtfilt_zi(coeffs);
+    FilterCoefficients normalized;
+    if (a0 != 1.0) {
+        normalized = coeffs;
+        for (auto &value : normalized.a) {
+            value /= a0;
+        }
+        for (auto &value : normalized.b) {
+            value /= a0;
+        }
+    }
+    const auto &filter_coeffs = a0 == 1.0 ? coeffs : normalized;
+    auto zi_base = internal::compute_filtfilt_zi(filter_coeffs);
 
     //  Left padding: 2*signal[0] - signal[nfact:1:-1]
     std::vector<double> leftpad;
@@ -236,7 +238,7 @@ inline void filtfilt(std::span<const double> signal,
     for (auto &z : zi) {
         z *= y0;
     }
-    auto signal2 = internal::filter_with_zi(signal1, coeffs, zi);
+    auto signal2 = internal::filter_with_zi(signal1, filter_coeffs, zi);
 
     // Reverse
     std::reverse(signal2.begin(), signal2.end());
@@ -247,7 +249,7 @@ inline void filtfilt(std::span<const double> signal,
     for (auto &z : zi) {
         z *= y0;
     }
-    signal1 = internal::filter_with_zi(signal2, coeffs, zi);
+    signal1 = internal::filter_with_zi(signal2, filter_coeffs, zi);
 
     // Reverse back
     for (int i = signal1.size() - nfact - 1; i >= nfact; --i) {

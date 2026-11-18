@@ -50,6 +50,10 @@ struct ode_result {
 };
 ```
 
+`step_size_underflow` also covers a step too small to advance the current
+time in double precision. The solver returns before evaluating the
+right-hand side or counting that step.
+
 ## Options
 
 ```cpp

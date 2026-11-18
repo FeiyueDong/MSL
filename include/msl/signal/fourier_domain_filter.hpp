@@ -45,9 +45,8 @@ public:
      * @brief Transition shaping used around cutoff edges.
      *
      * - rectangular: ideal sinc filter, sharp cutoff but high side lobes
-     * - hamming: smoother transition, lower side lobes
-     * - hanning: similar to Hamming, slightly wider main lobe
-     * - blackman: even smoother, very low side lobes but wider transition
+     * - hamming, hanning: endpoint-normalized raised-cosine transition
+     * - blackman: endpoint-normalized Blackman transition
      */
     enum class WindowType { rectangular, hamming, hanning, blackman };
 
@@ -173,7 +172,7 @@ public:
     }
 
     /**
-     * @brief Set transition band width
+     * @brief Set the transition half-width around each cutoff
      * @param width Transition band width (normalized, e.g., 0.01 = 1% of
      * Nyquist)
      */
@@ -301,7 +300,7 @@ private:
     void validate_parameters() const {
         switch (type_) {
             case FilterType::lowpass:
-                if (fc_high_ <= 0.0 || fc_high_ >= 1.0) {
+                if (!(0.0 < fc_high_ && fc_high_ < 1.0)) {
                     throw std::invalid_argument(
                         "FourierDomainFilter: lowpass cutoff must satisfy 0 < "
                         "fc_high < 1");
@@ -309,7 +308,7 @@ private:
                 break;
 
             case FilterType::highpass:
-                if (fc_low_ <= 0.0 || fc_low_ >= 1.0) {
+                if (!(0.0 < fc_low_ && fc_low_ < 1.0)) {
                     throw std::invalid_argument(
                         "FourierDomainFilter: highpass cutoff must satisfy 0 < "
                         "fc_low < 1");
@@ -318,16 +317,10 @@ private:
 
             case FilterType::bandpass:
             case FilterType::bandstop:
-                if (fc_low_ <= 0.0 || fc_low_ >= 1.0 || fc_high_ <= 0.0
-                    || fc_high_ >= 1.0) {
+                if (!(0.0 < fc_low_ && fc_high_ < 1.0 && fc_low_ < fc_high_)) {
                     throw std::invalid_argument(
                         "FourierDomainFilter: band cutoffs must satisfy 0 < "
                         "fc_low < fc_high < 1");
-                }
-                if (fc_low_ >= fc_high_) {
-                    throw std::invalid_argument(
-                        "FourierDomainFilter: low frequency must be < high "
-                        "frequency");
                 }
                 break;
 
@@ -336,7 +329,7 @@ private:
                     "FourierDomainFilter: unsupported filter type");
         }
 
-        if (transition_band_ < 0.0 || transition_band_ >= 0.5) {
+        if (!(0.0 <= transition_band_ && transition_band_ < 0.5)) {
             throw std::invalid_argument("FourierDomainFilter: transition band "
                                         "must be in range [0, 0.5)");
         }
@@ -348,110 +341,49 @@ private:
     void design() {
         validate_parameters();
 
-        window_function_ = [=, this](double f) -> double {
-            f = std::abs(f); // 对称处理
-            f = std::clamp(f, 0.0, 1.0);
-
-            const double fl = std::clamp(fc_low_, 0.0, 1.0);
-            const double fh = std::clamp(fc_high_, 0.0, 1.0);
-            const double tw = std::clamp(transition_band_, 0.0, 0.5);
-
-            if (tw == 0.0) {
-                switch (type_) {
-                    case FilterType::lowpass:
-                        return (f <= fh) ? 1.0 : 0.0;
-                    case FilterType::highpass:
-                        return (f >= fl) ? 1.0 : 0.0;
-                    case FilterType::bandpass:
-                        return (f >= fl && f <= fh) ? 1.0 : 0.0;
-                    case FilterType::bandstop:
-                        return (f >= fl && f <= fh) ? 0.0 : 1.0;
-                    default:
-                        return 0.0;
+        window_function_ = [low = fc_low_,
+                            high = fc_high_,
+                            width = transition_band_,
+                            type = type_,
+                            window = window_type_](double f) {
+            f = std::abs(f);
+            const auto ramp = [&](double distance) -> double {
+                if (width == 0.0 || window == WindowType::rectangular) {
+                    return distance >= 0.0 ? 1.0 : 0.0;
                 }
-            }
-
-            auto smooth = [&](double x) {
-                double t = std::clamp((x + tw) / (2.0 * tw), 0.0, 1.0);
-                switch (window_type_) {
-                    case WindowType::rectangular:
-                        return (t >= 0.5) ? 1.0 : 0.0;
-                    case WindowType::hanning:
-                        return 0.5 * (1 - std::cos(std::numbers::pi * t));
+                if (distance <= -width) {
+                    return 0.0;
+                }
+                if (distance >= width) {
+                    return 1.0;
+                }
+                const double t = 0.5 * (1.0 + distance / width);
+                const double sine = std::sin(0.5 * std::numbers::pi * t);
+                const double hann_gain = sine * sine;
+                switch (window) {
+                    // Endpoint normalization reduces Hamming to the Hann ramp.
                     case WindowType::hamming:
-                        return 0.54 - 0.46 * std::cos(std::numbers::pi * t);
+                    case WindowType::hanning:
+                        return hann_gain;
                     case WindowType::blackman:
-                        return 0.42 - 0.5 * std::cos(std::numbers::pi * t)
-                               + 0.08 * std::cos(2 * std::numbers::pi * t);
+                        return hann_gain * (0.36 + 0.64 * hann_gain);
+                    case WindowType::rectangular:
+                        break;
                 }
                 return 0.0;
             };
 
-            double gain = 0.0;
-
-            switch (type_) {
-                case FilterType::lowpass: {
-                    const double pass_end = fh - tw;
-                    const double stop_start = fh + tw;
-
-                    if (f <= pass_end)
-                        gain = 1.0;
-                    else if (f >= stop_start)
-                        gain = 0.0;
-                    else
-                        gain = smooth(stop_start - f);
-                    break;
-                }
-
-                case FilterType::highpass: {
-                    const double stop_end = fl - tw;
-                    const double pass_start = fl + tw;
-
-                    if (f <= stop_end)
-                        gain = 0.0;
-                    else if (f >= pass_start)
-                        gain = 1.0;
-                    else
-                        gain = smooth(f - stop_end);
-                    break;
-                }
-
-                case FilterType::bandpass: {
-                    const double f_low_start = fl - tw;
-                    const double f_low_end = fl + tw;
-                    const double f_high_start = fh - tw;
-                    const double f_high_end = fh + tw;
-
-                    if (f < f_low_start || f > f_high_end)
-                        gain = 0.0;
-                    else if (f >= f_low_end && f <= f_high_start)
-                        gain = 1.0;
-                    else if (f >= f_low_start && f < f_low_end)
-                        gain = smooth(f - f_low_start);
-                    else if (f > f_high_start && f <= f_high_end)
-                        gain = smooth(f_high_end - f);
-                    break;
-                }
-
-                case FilterType::bandstop: {
-                    const double f_low_start = fl - tw;
-                    const double f_low_end = fl + tw;
-                    const double f_high_start = fh - tw;
-                    const double f_high_end = fh + tw;
-
-                    if (f < f_low_start || f > f_high_end)
-                        gain = 1.0;
-                    else if (f >= f_low_end && f <= f_high_start)
-                        gain = 0.0;
-                    else if (f >= f_low_start && f < f_low_end)
-                        gain = 1.0 - smooth(f - f_low_start);
-                    else if (f > f_high_start && f <= f_high_end)
-                        gain = 1.0 - smooth(f_high_end - f);
-                    break;
-                }
+            switch (type) {
+                case FilterType::lowpass:
+                    return ramp(high - f);
+                case FilterType::highpass:
+                    return ramp(f - low);
+                case FilterType::bandpass:
+                    return ramp(f - low) * ramp(high - f);
+                case FilterType::bandstop:
+                    return 1.0 - ramp(f - low) * ramp(high - f);
             }
-
-            return std::clamp(gain, 0.0, 1.0);
+            return 0.0;
         };
     }
 };

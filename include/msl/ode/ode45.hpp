@@ -209,14 +209,16 @@ inline ode_result ode45_solve_to(Func &&f,
 
         double remaining = t1 - t;
         h = std::min(h, remaining);
-        if (h < options.min_step && remaining > options.min_step) {
+        const double t_next = t + h;
+        if (t_next == t
+            || (h < options.min_step && remaining > options.min_step)) {
             result.status = ode_status::step_size_underflow;
             return result;
         }
 
         auto step = ode45_step(func, t, y, h, options);
         if (!is_finite_state(step.y_next)) {
-            result.t.push_back(t + h);
+            result.t.push_back(t_next);
             result.y.push_back(std::move(step.y_next));
             ++result.steps;
             result.status = ode_status::non_finite_value;
@@ -224,7 +226,7 @@ inline ode_result ode45_solve_to(Func &&f,
         }
 
         if (step.error_norm <= 1.0) {
-            t += h;
+            t = t_next;
             y = std::move(step.y_next);
             ++result.steps;
             if (store_internal_steps || t >= t1) {

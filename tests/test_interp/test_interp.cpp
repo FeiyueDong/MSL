@@ -222,6 +222,16 @@ int test_interp_state() {
         cubic_y[i] = 1.0 - 2.0 * xi + 0.5 * xi * xi + 0.25 * xi * xi * xi;
     }
     auto cubic_spline = interp::CubicSpline::from_data(cubic_x, cubic_y);
+    constexpr double coordinate_scale = 1e-8;
+    auto small_x = cubic_x;
+    for (double &x_value : small_x) {
+        x_value *= coordinate_scale;
+    }
+    const auto small_spline = interp::CubicSpline::from_data(small_x, cubic_y);
+    EXPECT_NEAR(small_spline(1.5 * coordinate_scale), cubic_spline(1.5), 1e-12);
+    EXPECT_NEAR(small_spline.derivative(1.5 * coordinate_scale) * coordinate_scale,
+                cubic_spline.derivative(1.5),
+                1e-12);
     const double endpoints[2] = {cubic_x.front(), cubic_x.back()};
     for (const double endpoint : endpoints) {
         const double first = cubic_spline.derivative(endpoint);

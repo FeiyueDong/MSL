@@ -47,6 +47,12 @@ SVD reconstruction is `U*S*transpose(V)` for real matrices and
   with LU. The public overloads, odd reflection, and `3 * filter_order`
   padding remain the contract. Numerical outputs can change for poorly
   conditioned startup systems; the C++ suite includes a fixed SciPy oracle.
+- **Fourier-domain filtering** evaluates tapered gains across the full
+  transition interval. Outputs using tapered windows can change near the
+  cutoff and where two transitions overlap.
+- **Sampled Romberg integration** uses all supplied samples. The existing
+  `tol` argument continues to control early termination for callable
+  integrands.
 - **Cumulative Simpson integration** integrates a three-point parabola over
   each half interval. Interior cumulative points are not averages of adjacent
   accumulated integrals. With an even number of samples, the final interval

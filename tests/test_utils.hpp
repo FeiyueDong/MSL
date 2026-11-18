@@ -70,8 +70,8 @@ inline void expect_complex_near(const std::complex<double> &actual,
                                 const char *file,
                                 int line) {
     ++g_total;
-    if (std::abs(actual.real() - expected.real()) > eps
-        || std::abs(actual.imag() - expected.imag()) > eps) {
+    if (!(std::abs(actual.real() - expected.real()) <= eps
+          && std::abs(actual.imag() - expected.imag()) <= eps)) {
         ++g_failures;
         std::cerr << "[FAIL] " << file << ":" << line
                   << " - complex not near (got: " << actual << " vs "

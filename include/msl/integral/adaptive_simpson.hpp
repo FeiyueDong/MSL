@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <numeric>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -37,9 +38,9 @@ inline double adaptive_simpson_recursive(Func &f,
                                          double tol,
                                          size_t max_depth,
                                          size_t depth) {
-    double c = 0.5 * (a + b);
-    double left_mid = 0.5 * (a + c);
-    double right_mid = 0.5 * (c + b);
+    double c = std::midpoint(a, b);
+    double left_mid = std::midpoint(a, c);
+    double right_mid = std::midpoint(c, b);
 
     double fd = std::invoke(f, left_mid);
     double fe = std::invoke(f, right_mid);
@@ -49,8 +50,16 @@ inline double adaptive_simpson_recursive(Func &f,
     double refined = left + right;
     double error = (refined - whole) / 15.0;
 
+    if (!std::isfinite(refined) || !std::isfinite(error)) {
+        throw std::runtime_error(
+            "Adaptive Simpson: non-finite integrand or estimate");
+    }
     if (std::abs(error) <= tol || depth >= max_depth) {
         return refined + error;
+    }
+    if (c == a || c == b) {
+        throw std::runtime_error(
+            "Adaptive Simpson: interval cannot be subdivided at this precision");
     }
 
     return adaptive_simpson_recursive(
@@ -77,13 +86,13 @@ inline double adaptive_simpson(Func &&f,
                                double b,
                                double tol = 1e-8,
                                size_t max_depth = 50) {
-    if (a >= b) {
+    if (!std::isfinite(a) || !std::isfinite(b) || a >= b) {
         throw std::invalid_argument(
-            "Adaptive Simpson: lower limit must be less than upper limit");
+            "Adaptive Simpson: limits must be finite and strictly increasing");
     }
-    if (tol <= 0.0) {
+    if (!std::isfinite(tol) || tol <= 0.0) {
         throw std::invalid_argument(
-            "Adaptive Simpson: tolerance must be positive");
+            "Adaptive Simpson: tolerance must be finite and positive");
     }
     if (max_depth == 0) {
         throw std::invalid_argument(
@@ -98,14 +107,22 @@ inline double adaptive_simpson(Func &&f,
         }
     }
 
-    double c = 0.5 * (a + b);
+    double c = std::midpoint(a, b);
     double fa = std::invoke(func, a);
     double fb = std::invoke(func, b);
     double fc = std::invoke(func, c);
     double whole = (b - a) / 6.0 * (fa + 4.0 * fc + fb);
+    if (!std::isfinite(whole)) {
+        throw std::runtime_error(
+            "Adaptive Simpson: non-finite integrand or estimate");
+    }
 
-    return detail::adaptive_simpson_recursive(
+    const double integral = detail::adaptive_simpson_recursive(
         func, a, b, fa, fb, fc, whole, tol, max_depth, 0);
+    if (!std::isfinite(integral)) {
+        throw std::runtime_error("Adaptive Simpson: non-finite integral");
+    }
+    return integral;
 }
 
 /**

@@ -91,8 +91,12 @@ inline ode_result fixed_step_solve(Func &&f,
         }
 
         double h = std::min(dt, t1 - t);
-        state y_next = step(func, t, y, h);
         double t_next = t + h;
+        if (t_next == t) {
+            result.status = ode_status::step_size_underflow;
+            return result;
+        }
+        state y_next = step(func, t, y, h);
 
         if (!std::isfinite(t_next) || !is_finite_state(y_next)) {
             result.t.push_back(t_next);
@@ -142,8 +146,12 @@ inline ode_result fixed_step_solve_eval(Func &&f,
             }
 
             double h = std::min(dt, target - t);
-            state y_next = step(func, t, y, h);
             double t_next = t + h;
+            if (t_next == t) {
+                result.status = ode_status::step_size_underflow;
+                return result;
+            }
+            state y_next = step(func, t, y, h);
 
             if (!std::isfinite(t_next) || !is_finite_state(y_next)) {
                 result.t.push_back(t_next);
